@@ -77,7 +77,8 @@ def generate():
     except KeyError as e:
         return jsonify({'error': f'Missing field in CV data: {str(e)}'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback as tb
+        return jsonify({'error': str(e), 'detail': tb.format_exc()}), 400
 
 
 if __name__ == '__main__':
