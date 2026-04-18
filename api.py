@@ -7,10 +7,15 @@ Returns a formatted .docx file ready for Google Drive upload.
 Deploy to Render.com -- see README in outputs folder for instructions.
 """
 
+import logging
+import traceback as tb
 from flask import Flask, request, send_file, jsonify
 from generate_cv import build_cv_doc
 import tempfile
 import os
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -28,10 +33,22 @@ def generate():
     Returns a formatted .docx file as a binary download.
     """
     try:
-        cv_data = request.get_json(force=True)
+        raw_body = request.get_data(as_text=True)
+        logger.info("=== RAW REQUEST BODY (first 500 chars) ===")
+        logger.info(repr(raw_body[:500]))
+        logger.info("=== CONTENT-TYPE: %s ===", request.content_type)
+
+        cv_data = request.get_json(force=True, silent=True)
 
         if not cv_data:
-            return jsonify({'error': 'No JSON body received'}), 400
+            logger.error("JSON PARSE FAILED. Raw body repr: %s", repr(raw_body[:300]))
+            return jsonify({'error': 'No JSON body received', 'raw_preview': raw_body[:200]}), 400
+
+        if not isinstance(cv_data, dict):
+            logger.error("cv_data is not a dict, type=%s, value=%s", type(cv_data).__name__, repr(str(cv_data)[:300]))
+            return jsonify({'error': f'Expected JSON object, got {type(cv_data).__name__}', 'preview': str(cv_data)[:200]}), 400
+
+        logger.info("cv_data keys: %s", list(cv_data.keys()))
 
         # Validate minimum required fields
         required = ['name', 'summary', 'employment']
@@ -68,9 +85,10 @@ def generate():
         return response
 
     except KeyError as e:
-        return jsonify({'error': f'Missing field in CV data: {str(e)}'}), 400
+        logger.error("KeyError: %s\n%s", e, tb.format_exc())
+        return jsonify({'error': f'Missing field in CV data: {str(e)}', 'detail': tb.format_exc()}), 400
     except Exception as e:
-        import traceback as tb
+        logger.error("Exception: %s\n%s", e, tb.format_exc())
         return jsonify({'error': str(e), 'detail': tb.format_exc()}), 400
 
 
