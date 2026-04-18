@@ -48,7 +48,7 @@ def add_bullet(doc, text):
     p = doc.add_paragraph(style='List Bullet')
     p.paragraph_format.space_before = Pt(1)
     p.paragraph_format.space_after = Pt(1)
-    run = p.add_run(text)
+    run = p.add_run(str(text) if text is not None else "")
     set_run_font(run, size=10.5)
     return p
 
@@ -61,10 +61,10 @@ def add_numbered_item(doc, number, bold_title, text):
     r1 = p.add_run(f"{number}. ")
     set_run_font(r1, size=10.5, bold=True)
     # Bold title
-    r2 = p.add_run(bold_title + " — ")
+    r2 = p.add_run((str(bold_title) if bold_title is not None else "") + " — ")
     set_run_font(r2, size=10.5, bold=True)
     # Body text
-    r3 = p.add_run(text)
+    r3 = p.add_run(str(text) if text is not None else "")
     set_run_font(r3, size=10.5)
     return p
 
@@ -187,7 +187,7 @@ def build_cv_doc(cv_data, output_path):
             set_run_font(r_ctx, size=10, italic=True, color=(80, 80, 80))
 
         # Achievement bullets
-        for bullet in role['bullets']:
+        for bullet in (role.get('bullets') or []):
             add_bullet(doc, bullet)
 
     # EARLIER CAREER (if present)
