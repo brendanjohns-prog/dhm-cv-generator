@@ -4,7 +4,7 @@ DHM CV Optimisation API
 Accepts Claude's structured JSON output via POST /generate
 Returns a formatted .docx file ready for Google Drive upload.
 
-Deploy to Render.com — see README in outputs folder for instructions.
+Deploy to Render.com -- see README in outputs folder for instructions.
 """
 
 from flask import Flask, request, send_file, jsonify
@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Health check — Make.com can ping this to confirm the API is live."""
+    """Health check -- Make.com can ping this to confirm the API is live."""
     return jsonify({'status': 'ok', 'service': 'DHM CV Generator'})
 
 
@@ -26,13 +26,6 @@ def generate():
     """
     Accepts Claude's structured CV JSON via POST body.
     Returns a formatted .docx file as a binary download.
-
-    Make.com HTTP module config:
-      Method: POST
-      URL: https://your-app.onrender.com/generate
-      Body type: Raw
-      Content-Type: application/json
-      Body: { paste Claude's full JSON output or map {{3.data.choices[].message.content}} }
     """
     try:
         cv_data = request.get_json(force=True)
