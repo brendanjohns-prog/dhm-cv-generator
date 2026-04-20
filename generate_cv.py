@@ -82,10 +82,16 @@ def render_summary(doc, summary_text):
     # First try splitting on double newlines (explicit paragraph breaks)
     parts = [p.strip() for p in summary_text.split('\n\n') if p.strip()]
 
-    # If still one block, detect and separate a closing "Seeking / Now seeking" sentence
+    # Try single newlines if still one block
+    if len(parts) == 1 and '\n' in summary_text:
+        potential = [p.strip() for p in summary_text.split('\n') if p.strip()]
+        if len(potential) > 1:
+            parts = potential
+
+    # Fallback: detect a closing career-objective sentence by keyword
     if len(parts) == 1:
         seeking_match = re.search(
-            r'(?<=[.!?])\s+((?:Now\s+)?[Ss]eeking\b)',
+            r'(?<=[.!?])\s+((?:Now\s+)?(?:[Ss]eeking|[Ll]ooking\s+for|[Tt]argeting\s+a|[Oo]pen\s+to)\b)',
             summary_text
         )
         if seeking_match:
