@@ -3,15 +3,16 @@
 DHM CV Optimisation Pipeline - Document Generator
 Produces a consistently formatted .docx matching the DHM sample standard.
 """
-
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+import re
 import sys
 import json
+
 
 def add_horizontal_rule(paragraph, color='2E75B6'):
     """Add a bottom border to a paragraph to act as a horizontal rule."""
@@ -25,13 +26,15 @@ def add_horizontal_rule(paragraph, color='2E75B6'):
     pBdr.append(bottom)
     pPr.append(pBdr)
 
-def set_run_font(run, name='Calibri', size=11, bold=False, italic=False, color=None):  # Calibri: best for ATS + readability
+
+def set_run_font(run, name='Calibri', size=11, bold=False, italic=False, color=None):
     run.font.name = name
     run.font.size = Pt(size)
     run.font.bold = bold
     run.font.italic = italic
     if color:
         run.font.color.rgb = RGBColor(*color)
+
 
 def add_section_heading(doc, text):
     """Add a styled section heading — navy text, blue rule beneath."""
@@ -43,6 +46,7 @@ def add_section_heading(doc, text):
     add_horizontal_rule(p, color='2E75B6')
     return p
 
+
 def add_bullet(doc, text):
     """Add a properly formatted bullet point."""
     p = doc.add_paragraph(style='List Bullet')
@@ -51,6 +55,7 @@ def add_bullet(doc, text):
     run = p.add_run(str(text) if text is not None else "")
     set_run_font(run, size=10.5)
     return p
+
 
 def add_numbered_item(doc, number, bold_title, text):
     """Add a numbered changelog or gap report item."""
@@ -68,6 +73,38 @@ def add_numbered_item(doc, number, bold_title, text):
     set_run_font(r3, size=10.5)
     return p
 
+
+def render_summary(doc, summary_text):
+    """
+    Render the professional summary, splitting the closing 'Seeking...' sentence
+    into its own paragraph for visual separation.
+    """
+    # First try splitting on double newlines (explicit paragraph breaks)
+    parts = [p.strip() for p in summary_text.split('\n\n') if p.strip()]
+
+    # If still one block, detect and separate a closing "Seeking / Now seeking" sentence
+    if len(parts) == 1:
+        seeking_match = re.search(
+            r'(?<=[.!?])\s+((?:Now\s+)?[Ss]eeking\b)',
+            summary_text
+        )
+        if seeking_match:
+            parts = [
+                summary_text[:seeking_match.start()].strip(),
+                summary_text[seeking_match.start():].strip()
+            ]
+
+    for i, part in enumerate(parts):
+        if not part:
+            continue
+        p_sum = doc.add_paragraph()
+        r_sum = p_sum.add_run(part)
+        set_run_font(r_sum, size=10.5)
+        p_sum.paragraph_format.space_before = Pt(0)
+        # Extra space after the last paragraph only
+        p_sum.paragraph_format.space_after = Pt(6) if i == len(parts) - 1 else Pt(4)
+
+
 def build_cv_doc(cv_data, output_path):
     doc = Document()
 
@@ -82,6 +119,7 @@ def build_cv_doc(cv_data, output_path):
 
     # === DOCUMENT HEADER — dark navy background, white text ===
     from docx.oxml import OxmlElement as OE2
+
     def add_paragraph_shading(paragraph, fill_hex):
         pPr = paragraph._p.get_or_add_pPr()
         shd = OxmlElement('w:shd')
@@ -127,7 +165,7 @@ def build_cv_doc(cv_data, output_path):
     p_titles = doc.add_paragraph()
     p_titles.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_titles = p_titles.add_run(cv_data['tagline'])
-    set_run_font(r_titles, size=11, color=(46, 117, 182))  # #2E75B6
+    set_run_font(r_titles, size=11, color=(46, 117, 182))
     p_titles.paragraph_format.space_after = Pt(2)
 
     # Contact Details — centred, grey
@@ -137,12 +175,9 @@ def build_cv_doc(cv_data, output_path):
     set_run_font(r_contact, size=10, color=(85, 85, 85))
     p_contact.paragraph_format.space_after = Pt(10)
 
-    # EXECUTIVE SUMMARY
+    # PROFESSIONAL SUMMARY
     add_section_heading(doc, "PROFESSIONAL SUMMARY")
-    p_sum = doc.add_paragraph()
-    r_sum = p_sum.add_run(cv_data['summary'])
-    set_run_font(r_sum, size=10.5)
-    p_sum.paragraph_format.space_after = Pt(6)
+    render_summary(doc, cv_data.get('summary', ''))
 
     is_tech_role = cv_data.get('tech_role', False)
 
@@ -152,7 +187,7 @@ def build_cv_doc(cv_data, output_path):
         p_comp.paragraph_format.space_before = Pt(4)
         p_comp.paragraph_format.space_after = Pt(6)
         r_comp = p_comp.add_run(cv_data['competencies'])
-        set_run_font(r_comp, size=10.5, bold=False, color=(46, 117, 182))  # #2E75B6
+        set_run_font(r_comp, size=10.5, bold=False, color=(46, 117, 182))
 
     def add_technical_skills_section(doc, cv_data):
         if cv_data.get('technical_skills'):
@@ -164,12 +199,10 @@ def build_cv_doc(cv_data, output_path):
     # Tech roles: Technical Skills comes before Skills and Work Experience
     if is_tech_role:
         add_technical_skills_section(doc, cv_data)
-
     add_skills_section(doc, cv_data)
 
     # WORK EXPERIENCE
     add_section_heading(doc, "WORK EXPERIENCE")
-
     for role in cv_data['employment']:
         # Role header: TITLE | COMPANY | DATES
         p_role = doc.add_paragraph()
@@ -190,13 +223,21 @@ def build_cv_doc(cv_data, output_path):
         for bullet in (role.get('bullets') or []):
             add_bullet(doc, bullet)
 
-    # EARLIER CAREER (if present)
+    # ADDITIONAL EXPERIENCE (formerly "Earlier Career" — broader ATS recognition)
     if cv_data.get('earlier_career'):
-        add_section_heading(doc, "EARLIER CAREER")
+        add_section_heading(doc, "ADDITIONAL EXPERIENCE")
         for item in cv_data['earlier_career']:
-            add_bullet(doc, item)
+            # Defensive: handle both plain strings and legacy dict format
+            if isinstance(item, dict):
+                title = item.get('title', '') or ''
+                text = item.get('text', '') or ''
+                line = title + (' — ' + text if text else '')
+            else:
+                line = str(item) if item is not None else ''
+            if line:
+                add_bullet(doc, line)
 
-    # EDUCATION (if present)
+    # EDUCATION
     if cv_data.get('education'):
         add_section_heading(doc, "EDUCATION")
         for item in cv_data['education']:
@@ -236,7 +277,6 @@ def build_cv_doc(cv_data, output_path):
     # SECTION 3 — GAP REPORT
     # ===================================
     doc.add_paragraph()
-
     p_s3 = doc.add_paragraph()
     r_s3 = p_s3.add_run("SECTION 3 — GAP REPORT")
     set_run_font(r_s3, size=11, bold=True, color=(46, 64, 87))
@@ -262,7 +302,7 @@ if __name__ == '__main__':
         "name": "JAMES CARTER",
         "tagline": "Senior Marketing Manager | Head of Marketing | Demand Generation Lead",
         "contact": "07XXX XXXXXX  •  brendan.johns@dearhiringmanager.careers  •  London, UK",
-        "summary": "A demand generation leader who built TechFlow's entire marketing function from scratch, generating £4.2M in attributed pipeline revenue — 67% year-on-year growth — and cutting customer acquisition cost by 31% in the process. Known for building data-driven marketing engines that align tightly with sales, with a consistent focus on pipeline impact over brand activity, recognised externally by a Best B2B Campaign win at the Northern Digital Awards 2020. Equally comfortable setting strategy and getting hands-on with execution, with deep expertise spanning B2B SaaS, Account-Based Marketing (ABM), paid acquisition, and organic growth across eight years in the sector. Now seeking a Head of Marketing or Senior Marketing Manager role with full ownership of pipeline strategy, team, and budget — bringing a proven ability to build from zero and scale commercial outcomes.",
+        "summary": "A demand generation leader who built TechFlow's entire marketing function from scratch, generating £4.2M in attributed pipeline revenue — 67% year-on-year growth — and cutting customer acquisition cost by 31% in the process. Known for building data-driven marketing engines that align tightly with sales, with a consistent focus on pipeline impact over brand activity, recognised externally by a Best B2B Campaign win at the Northern Digital Awards 2020. Equally comfortable setting strategy and getting hands-on with execution, with deep expertise spanning B2B SaaS, Account-Based Marketing (ABM), paid acquisition, and organic growth across eight years in the sector.\n\nNow seeking a Head of Marketing or Senior Marketing Manager role with full ownership of pipeline strategy, team, and budget — bringing a proven ability to build from zero and scale commercial outcomes.",
         "competencies": "Demand Generation Strategy  •  B2B SaaS Marketing  •  Account-Based Marketing (ABM)  •  Paid Search and Paid Media  •  SEO and Content Strategy  •  Budget Ownership and ROI Reporting  •  CRM and Marketing Automation (HubSpot, Salesforce)  •  Marketing Attribution  •  Team Leadership and People Management  •  Stakeholder Management  •  Data-Driven Decision Making  •  B2B Content Marketing  •  Pipeline Revenue Growth  •  Cross-Functional Leadership",
         "employment": [
             {
@@ -311,6 +351,5 @@ if __name__ == '__main__':
             {"title": "LinkedIn URL missing [LOW PRIORITY]", "text": "Contact section has no LinkedIn URL. Technology companies cross-reference LinkedIn as standard during screening. Recommended action: add full LinkedIn URL to the contact line."}
         ]
     }
-
     output_path = "/sessions/kind-epic-bardeen/mnt/outputs/DHM_CV_Output_James_Carter.docx"
     build_cv_doc(cv_data, output_path)
