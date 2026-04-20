@@ -1,9 +1,8 @@
 """
 DHM CV Optimisation API
 -----------------------
-Accepts Claude's CV output via POST /generate — handles both:
-  1. Structured JSON format: {name, tagline, employment, ...}
-  2. Text draft format:      {cv_draft, strategic_changelog, gap_report}
+Accepts Claude's CV output via POST /generate or POST /generate-report.
+Handles both structured JSON and cv_draft text formats.
 Returns a formatted .docx file.
 """
 
@@ -11,7 +10,7 @@ import logging
 import traceback as tb
 import re
 from flask import Flask, request, send_file, jsonify
-from generate_cv import build_cv_doc
+from generate_cv import build_cv_only, build_report_only
 import tempfile
 import os
 
@@ -26,13 +25,30 @@ def health():
     return jsonify({'status': 'ok', 'service': 'DHM CV Generator'})
 
 
+def strip_em_dashes(text):
+    """Replace em dashes (AI-detection signal) with a plain hyphen."""
+    if not isinstance(text, str):
+        return text
+    return re.sub(r'\s*\u2014\s*', ' - ', text)  # — → -
+
+
+def clean_cv_data(cv_data):
+    """Recursively strip em dashes from all string fields."""
+    if isinstance(cv_data, dict):
+        return {k: clean_cv_data(v) for k, v in cv_data.items()}
+    elif isinstance(cv_data, list):
+        return [clean_cv_data(i) for i in cv_data]
+    elif isinstance(cv_data, str):
+        return strip_em_dashes(cv_data)
+    return cv_data
+
+
 def parse_cv_draft(cv_data):
     """
     Convert {cv_draft, strategic_changelog, gap_report} text format
-    into the structured dict that build_cv_doc() expects.
+    into the structured dict that build_cv_only/build_report_only expect.
     """
     raw = cv_data.get('cv_draft', '')
-    # Normalise escaped newlines that Claude sometimes outputs
     raw = raw.replace('\\n', '\n')
     lines = [l for l in raw.split('\n')]
     non_empty = [l.strip() for l in lines if l.strip()]
@@ -53,8 +69,7 @@ def parse_cv_draft(cv_data):
         'gap_report': [],
     }
 
-    # Section markers — order matters: more specific patterns must come before broader ones
-    # (technical_skills must precede competencies to avoid TECHNICAL SKILLS matching SKILLS)
+    # Order matters: more specific patterns before broader ones
     SECTION_PATTERNS = {
         'summary':          re.compile(r'EXECUTIVE SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|SUMMARY', re.I),
         'technical_skills': re.compile(r'TECHNOLOGY STACK|TECHNICAL SKILLS|TECHNOLOGY SKILLS|TOOLS AND TECHNOLOGY|TECH STACK', re.I),
@@ -75,24 +90,18 @@ def parse_cv_draft(cv_data):
 
         if current_section == 'summary':
             structured['summary'] = content
-
         elif current_section == 'competencies':
             structured['competencies'] = content
-
         elif current_section == 'technical_skills':
             structured['technical_skills'] = content
-
         elif current_section == 'notes':
-            structured['notes'] = content  # stored but not rendered in CV
-
+            structured['notes'] = content
         elif current_section == 'education':
             for line in section_lines:
                 line = line.strip()
                 if line:
                     structured['education'].append(line)
-
         elif current_section in ('employment', 'earlier_career'):
-            # Parse roles: header line + context + bullet points
             roles = []
             current_role = None
             for line in section_lines:
@@ -100,7 +109,6 @@ def parse_cv_draft(cv_data):
                 if not line:
                     continue
                 is_bullet = line.startswith('•') or line.startswith('-') or line.startswith('*')
-                # Role header: typically has | separators and a 4-digit year
                 is_header = bool(re.search(r'\d{4}', line)) and '|' in line
                 if is_header:
                     if current_role:
@@ -116,7 +124,6 @@ def parse_cv_draft(cv_data):
                     else:
                         current_role['context'] += ' ' + line
                 else:
-                    # No role started yet — treat as raw earlier-career item
                     roles.append({'title': line, 'text': ''})
             if current_role:
                 roles.append(current_role)
@@ -124,31 +131,28 @@ def parse_cv_draft(cv_data):
             if current_section == 'employment':
                 structured['employment'] = roles
             else:
-                # Earlier career: generate_cv.py expects plain strings, not dicts
                 ec_items = []
                 for r in roles:
                     title = r.get('header', r.get('title', ''))
-                    # Strip leading bullet/dash characters
                     title = title.lstrip('-•* ').strip()
                     context = r.get('context', r.get('text', ''))
                     bullets = r.get('bullets', [])
                     combined = title
                     if context:
-                        combined += ' — ' + context
+                        combined += ' - ' + context
                     if bullets:
-                        combined += (' — ' if not context else '; ') + '; '.join(bullets)
+                        combined += (' - ' if not context else '; ') + '; '.join(bullets)
                     if combined:
                         ec_items.append(combined)
                 structured['earlier_career'] = ec_items
 
-    for line in lines[3:]:  # Skip name/tagline/contact
+    for line in lines[3:]:
         stripped = line.strip()
         matched = None
         for sec, pattern in SECTION_PATTERNS.items():
             if pattern.fullmatch(stripped) or (stripped.isupper() and len(stripped) > 3 and pattern.search(stripped)):
                 matched = sec
                 break
-
         if matched:
             flush_section()
             current_section = matched
@@ -158,20 +162,16 @@ def parse_cv_draft(cv_data):
 
     flush_section()
 
-    # --- Parse changelog and gap_report ---
     def parse_text_items(text):
-        """Convert text blob to [{title, text}] list."""
         if not text:
             return []
         text = text.replace('\\n', '\n')
         items = []
-        # Try to split on numbered list or dashes
         parts = re.split(r'\n(?=\d+[\.\)]\s|\-\s|\•\s)', text)
         for part in parts:
             part = part.strip().lstrip('0123456789.)- •')
             if not part:
                 continue
-            # First line = title, rest = body
             sub = part.split('\n', 1)
             title = sub[0].strip()
             body = sub[1].strip() if len(sub) > 1 else ''
@@ -186,36 +186,39 @@ def parse_cv_draft(cv_data):
     return structured
 
 
+def get_cv_data_from_request():
+    """Parse, validate, and normalise the incoming request body."""
+    raw_body = request.get_data(as_text=True)
+    logger.info("RAW REQUEST (first 300 chars): %s", repr(raw_body[:300]))
+
+    cv_data = request.get_json(force=True, silent=True)
+    if not cv_data:
+        return None, ('No JSON body received', 400)
+    if not isinstance(cv_data, dict):
+        return None, (f'Expected JSON object, got {type(cv_data).__name__}', 400)
+
+    if 'cv_draft' in cv_data:
+        logger.info("Detected cv_draft format — converting to structured")
+        cv_data = parse_cv_draft(cv_data)
+
+    # Strip em dashes from all text fields
+    cv_data = clean_cv_data(cv_data)
+    return cv_data, None
+
+
 @app.route('/generate', methods=['POST'])
 def generate():
+    """Returns the client-facing CV document only (no changelog/gap report)."""
     try:
-        raw_body = request.get_data(as_text=True)
-        logger.info("=== RAW REQUEST BODY (first 500 chars) ===")
-        logger.info(repr(raw_body[:500]))
-        logger.info("=== CONTENT-TYPE: %s ===", request.content_type)
-
-        cv_data = request.get_json(force=True, silent=True)
-
-        if not cv_data:
-            logger.error("JSON PARSE FAILED. Raw body repr: %r", raw_body[:200])
-            return jsonify({'error': 'No JSON body received', 'raw_preview': raw_body[:200]}), 400
-
-        if not isinstance(cv_data, dict):
-            return jsonify({'error': f'Expected JSON object, got {type(cv_data).__name__}'}), 400
-
-        logger.info("cv_data keys: %s", list(cv_data.keys()))
-
-        # Detect format and normalise to structured dict
-        if 'cv_draft' in cv_data:
-            logger.info("Detected cv_draft format — converting to structured")
-            cv_data = parse_cv_draft(cv_data)
-            logger.info("After parse, structured keys: %s", list(cv_data.keys()))
+        cv_data, err = get_cv_data_from_request()
+        if err:
+            return jsonify({'error': err[0]}), err[1]
 
         with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
             output_path = tmp.name
 
-        build_cv_doc(cv_data, output_path)
-        logger.info("Saved: %s", output_path)
+        build_cv_only(cv_data, output_path)
+        logger.info("CV saved: %s", output_path)
 
         return send_file(
             output_path,
@@ -223,10 +226,31 @@ def generate():
             as_attachment=True,
             download_name='DHM_CV_Output.docx'
         )
+    except Exception as e:
+        logger.error("Exception: %s\n%s", e, tb.format_exc())
+        return jsonify({'error': str(e), 'traceback': tb.format_exc()}), 400
 
-    except KeyError as e:
-        logger.error("KeyError: %s\n%s", e, tb.format_exc())
-        return jsonify({'error': f'Missing field: {e}', 'traceback': tb.format_exc()}), 400
+
+@app.route('/generate-report', methods=['POST'])
+def generate_report():
+    """Returns the internal report document (Strategic Changelog + Gap Report)."""
+    try:
+        cv_data, err = get_cv_data_from_request()
+        if err:
+            return jsonify({'error': err[0]}), err[1]
+
+        with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
+            output_path = tmp.name
+
+        build_report_only(cv_data, output_path)
+        logger.info("Report saved: %s", output_path)
+
+        return send_file(
+            output_path,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name='DHM_Strategic_Report.docx'
+        )
     except Exception as e:
         logger.error("Exception: %s\n%s", e, tb.format_exc())
         return jsonify({'error': str(e), 'traceback': tb.format_exc()}), 400
