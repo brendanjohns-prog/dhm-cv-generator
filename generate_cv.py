@@ -1,21 +1,51 @@
 #!/usr/bin/env python3
 """
 DHM CV Optimisation Pipeline - Document Generator
-Produces a consistently formatted .docx matching the DHM sample standard.
+Produces consistently formatted .docx files matching the DHM brand standard.
+
+Brand colours:
+  Deep Coral   #DC6A63  (220, 106, 99)  — primary accent
+  Black        #000000  (0, 0, 0)
+  White        #FFFFFF  (255, 255, 255)
+  Soft Blue    #B8C0CC  (184, 192, 204)  — secondary accent
+  Dark Grey    #444444  (68, 68, 68)
 """
+import os
+import re
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import re
-import sys
-import json
+
+# ---------------------------------------------------------------------------
+# ASSET PATHS  (images live in an assets/ folder alongside this script)
+# ---------------------------------------------------------------------------
+_DIR     = os.path.dirname(os.path.abspath(__file__))
+LOGO_PATH = os.path.join(_DIR, 'assets', 'DHM_App_Logo.png')
+SIG_PATH  = os.path.join(_DIR, 'assets', 'DHM_Report_Signature_V3.png')
+
+# ---------------------------------------------------------------------------
+# BRAND COLOURS
+# ---------------------------------------------------------------------------
+CORAL     = (220, 106, 99)
+BLACK     = (0, 0, 0)
+WHITE     = (255, 255, 255)
+SOFT_BLUE = (184, 192, 204)
+DARK_GREY = (68, 68, 68)
+MID_GREY  = (80, 80, 80)
 
 
-def add_horizontal_rule(paragraph, color='2E75B6'):
-    """Add a bottom border to a paragraph to act as a horizontal rule."""
+# ---------------------------------------------------------------------------
+# LOW-LEVEL HELPERS
+# ---------------------------------------------------------------------------
+
+def _first_name(full_name):
+    """Extract and title-case the first name from cv_data['name']."""
+    return full_name.strip().split()[0].title()
+
+
+def add_horizontal_rule(paragraph, color='DC6A63'):
     pPr = paragraph._p.get_or_add_pPr()
     pBdr = OxmlElement('w:pBdr')
     bottom = OxmlElement('w:bottom')
@@ -36,59 +66,180 @@ def set_run_font(run, name='Calibri', size=11, bold=False, italic=False, color=N
         run.font.color.rgb = RGBColor(*color)
 
 
-def add_section_heading(doc, text):
-    """Add a styled section heading — navy text, blue rule beneath."""
+def _add_paragraph_shading(paragraph, fill_hex):
+    pPr = paragraph._p.get_or_add_pPr()
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'), fill_hex)
+    pPr.append(shd)
+
+
+def add_hyperlink(paragraph, url, text, color, size=10.5, bold=False):
+    """Add a clickable hyperlink run to an existing paragraph."""
+    part = paragraph.part
+    r_id = part.relate_to(
+        url,
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
+        is_external=True
+    )
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set(qn('r:id'), r_id)
+    new_run = OxmlElement('w:r')
+    rPr = OxmlElement('w:rPr')
+    rStyle = OxmlElement('w:rStyle')
+    rStyle.set(qn('w:val'), 'Hyperlink')
+    rPr.append(rStyle)
+    color_el = OxmlElement('w:color')
+    color_el.set(qn('w:val'), '%02x%02x%02x' % color)
+    rPr.append(color_el)
+    sz = OxmlElement('w:sz')
+    sz.set(qn('w:val'), str(int(size * 2)))
+    rPr.append(sz)
+    if bold:
+        rPr.append(OxmlElement('w:b'))
+    new_run.append(rPr)
+    t = OxmlElement('w:t')
+    t.text = text
+    new_run.append(t)
+    hyperlink.append(new_run)
+    paragraph._p.append(hyperlink)
+
+
+def _setup_page(doc):
+    section = doc.sections[0]
+    section.page_width  = Cm(21)
+    section.page_height = Cm(29.7)
+    section.left_margin = section.right_margin = Inches(0.9)
+    section.top_margin  = section.bottom_margin = Inches(0.8)
+
+
+def remove_table_borders(table):
+    tbl   = table._tbl
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+    tblBorders = OxmlElement('w:tblBorders')
+    for side in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+        b = OxmlElement(f'w:{side}')
+        b.set(qn('w:val'), 'none')
+        tblBorders.append(b)
+    tblPr.append(tblBorders)
+
+
+# ---------------------------------------------------------------------------
+# CV SECTION HELPERS  (navy palette — CV styling, not DHM brand)
+# ---------------------------------------------------------------------------
+
+def add_cv_section_heading(doc, text):
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(12)
-    p.paragraph_format.space_after = Pt(2)
+    p.paragraph_format.space_after  = Pt(2)
     run = p.add_run(text)
-    set_run_font(run, size=11, bold=True, color=(31, 56, 100))  # #1F3864
+    set_run_font(run, size=11, bold=True, color=(31, 56, 100))
     add_horizontal_rule(p, color='2E75B6')
     return p
 
 
 def add_bullet(doc, text):
-    """Add a properly formatted bullet point."""
     p = doc.add_paragraph(style='List Bullet')
     p.paragraph_format.space_before = Pt(1)
-    p.paragraph_format.space_after = Pt(1)
-    run = p.add_run(str(text) if text is not None else "")
+    p.paragraph_format.space_after  = Pt(1)
+    run = p.add_run(str(text) if text is not None else '')
     set_run_font(run, size=10.5)
     return p
 
 
-def add_numbered_item(doc, number, bold_title, text):
-    """Add a numbered changelog or gap report item."""
+# ---------------------------------------------------------------------------
+# REPORT SECTION HELPERS  (DHM brand palette)
+# ---------------------------------------------------------------------------
+
+def add_report_section_heading(doc, text):
     p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(4)
-    p.paragraph_format.space_after = Pt(4)
-    # Number
-    r1 = p.add_run(f"{number}. ")
-    set_run_font(r1, size=10.5, bold=True)
-    # Bold title
-    r2 = p.add_run((str(bold_title) if bold_title is not None else "") + " — ")
-    set_run_font(r2, size=10.5, bold=True)
-    # Body text
-    r3 = p.add_run(str(text) if text is not None else "")
-    set_run_font(r3, size=10.5)
+    p.paragraph_format.space_before = Pt(18)
+    p.paragraph_format.space_after  = Pt(2)
+    run = p.add_run(text)
+    set_run_font(run, name='Inter', size=11, bold=True, color=CORAL)
+    add_horizontal_rule(p, color='DC6A63')
     return p
 
 
-def render_summary(doc, summary_text):
-    """
-    Render the professional summary, splitting the closing 'Seeking...' sentence
-    into its own paragraph for visual separation.
-    """
-    # First try splitting on double newlines (explicit paragraph breaks)
+def add_subheading(doc, text):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after  = Pt(10)
+    r = p.add_run(text)
+    set_run_font(r, size=10, italic=True, color=MID_GREY)
+    return p
+
+
+def add_body(doc, text, bold=False, space_after=6):
+    p = doc.add_paragraph()
+    r = p.add_run(text)
+    set_run_font(r, size=10.5, bold=bold, color=BLACK if bold else DARK_GREY)
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after  = Pt(space_after)
+    return p
+
+
+def add_stage_heading(doc, text):
+    p = doc.add_paragraph()
+    r = p.add_run(text)
+    set_run_font(r, name='Inter', size=10.5, bold=True, color=BLACK)
+    p.paragraph_format.space_before = Pt(10)
+    p.paragraph_format.space_after  = Pt(4)
+    return p
+
+
+def add_approach_bullet(doc, bold_label, text):
+    p = doc.add_paragraph(style='List Bullet')
+    p.paragraph_format.space_before = Pt(1)
+    p.paragraph_format.space_after  = Pt(4)
+    r1 = p.add_run(bold_label + ': ')
+    set_run_font(r1, size=10.5, bold=True, color=BLACK)
+    r2 = p.add_run(text)
+    set_run_font(r2, size=10.5, color=DARK_GREY)
+    return p
+
+
+def add_numbered_item(doc, number, bold_title, text):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(2)
+    p.paragraph_format.space_after  = Pt(8)
+    r1 = p.add_run(f'{number}. ')
+    set_run_font(r1, size=10.5, bold=True, color=CORAL)
+    r2 = p.add_run(str(bold_title) + ' - ')
+    set_run_font(r2, size=10.5, bold=True, color=BLACK)
+    r3 = p.add_run(str(text))
+    set_run_font(r3, size=10.5, color=DARK_GREY)
+    return p
+
+
+def add_next_step_bullet(doc, bold_label, text):
+    p = doc.add_paragraph(style='List Bullet')
+    p.paragraph_format.space_before = Pt(1)
+    p.paragraph_format.space_after  = Pt(5)
+    r1 = p.add_run(bold_label + ' - ')
+    set_run_font(r1, size=10.5, bold=True, color=BLACK)
+    r2 = p.add_run(text)
+    set_run_font(r2, size=10.5, color=DARK_GREY)
+    return p
+
+
+# ---------------------------------------------------------------------------
+# SUMMARY RENDERER
+# ---------------------------------------------------------------------------
+
+def _render_summary(doc, summary_text):
+    """Split on double newline, single newline, or Seeking/Targeting keyword."""
     parts = [p.strip() for p in summary_text.split('\n\n') if p.strip()]
 
-    # Try single newlines if still one block
     if len(parts) == 1 and '\n' in summary_text:
         potential = [p.strip() for p in summary_text.split('\n') if p.strip()]
         if len(potential) > 1:
             parts = potential
 
-    # Fallback: detect a closing career-objective sentence by keyword
     if len(parts) == 1:
         seeking_match = re.search(
             r'(?<=[.!?])\s+((?:Now\s+)?(?:[Ss]eeking|[Ll]ooking\s+for|[Tt]argeting\s+a|[Oo]pen\s+to)\b)',
@@ -107,255 +258,420 @@ def render_summary(doc, summary_text):
         r_sum = p_sum.add_run(part)
         set_run_font(r_sum, size=10.5)
         p_sum.paragraph_format.space_before = Pt(0)
-        # Extra space after the last paragraph only
-        p_sum.paragraph_format.space_after = Pt(6) if i == len(parts) - 1 else Pt(4)
+        p_sum.paragraph_format.space_after  = Pt(6) if i == len(parts) - 1 else Pt(4)
 
 
-def build_cv_doc(cv_data, output_path):
-    doc = Document()
+# ---------------------------------------------------------------------------
+# CV CONTENT BLOCK
+# ---------------------------------------------------------------------------
 
-    # === PAGE SETUP (A4, UK standard for CVs) ===
-    section = doc.sections[0]
-    section.page_width = Cm(21)
-    section.page_height = Cm(29.7)
-    section.left_margin = Inches(0.9)
-    section.right_margin = Inches(0.9)
-    section.top_margin = Inches(0.8)
-    section.bottom_margin = Inches(0.8)
+def _add_cv_content(doc, cv_data):
+    """Clean client-facing CV — name block through Technical Skills."""
 
-    # === DOCUMENT HEADER — dark navy background, white text ===
-    from docx.oxml import OxmlElement as OE2
-
-    def add_paragraph_shading(paragraph, fill_hex):
-        pPr = paragraph._p.get_or_add_pPr()
-        shd = OxmlElement('w:shd')
-        shd.set(qn('w:val'), 'clear')
-        shd.set(qn('w:color'), 'auto')
-        shd.set(qn('w:fill'), fill_hex)
-        pPr.append(shd)
-
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(0)
-    p.paragraph_format.space_after = Pt(0)
-    add_paragraph_shading(p, '1F3864')
-    r = p.add_run("DEAR HIRING MANAGER — CV OPTIMISATION PIPELINE OUTPUT")
-    set_run_font(r, size=11, bold=True, color=(255, 255, 255))
-
-    p2 = doc.add_paragraph()
-    p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p2.paragraph_format.space_before = Pt(0)
-    p2.paragraph_format.space_after = Pt(10)
-    add_paragraph_shading(p2, '1F3864')
-    r2 = p2.add_run(f"Output for: {cv_data['name']}  →  {cv_data['tagline']}")
-    set_run_font(r2, size=9, italic=True, color=(200, 220, 240))
-
-    # ===================================
-    # SECTION 1 — REWRITTEN CV DRAFT
-    # ===================================
-    p_s1 = doc.add_paragraph()
-    r_s1 = p_s1.add_run("SECTION 1 — REWRITTEN CV DRAFT")
-    set_run_font(r_s1, size=11, bold=True, color=(46, 64, 87))
-    r_s1.font.underline = True
-    p_s1.paragraph_format.space_after = Pt(10)
-
-    # Client Name — centred, large, dark
+    # Name
     p_name = doc.add_paragraph()
     p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_name = p_name.add_run(cv_data['name'])
-    set_run_font(r_name, size=20, bold=True, color=(30, 30, 30))
+    set_run_font(r_name, size=20, bold=True, color=BLACK)
     p_name.paragraph_format.space_before = Pt(10)
-    p_name.paragraph_format.space_after = Pt(2)
+    p_name.paragraph_format.space_after  = Pt(2)
 
-    # Target Job Titles — centred, #2E75B6 blue
+    # Tagline
     p_titles = doc.add_paragraph()
     p_titles.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_titles = p_titles.add_run(cv_data['tagline'])
     set_run_font(r_titles, size=11, color=(46, 117, 182))
     p_titles.paragraph_format.space_after = Pt(2)
 
-    # Contact Details — centred, grey
+    # Contact
     p_contact = doc.add_paragraph()
     p_contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_contact = p_contact.add_run(cv_data['contact'])
     set_run_font(r_contact, size=10, color=(85, 85, 85))
     p_contact.paragraph_format.space_after = Pt(10)
 
-    # PROFESSIONAL SUMMARY
-    add_section_heading(doc, "PROFESSIONAL SUMMARY")
-    render_summary(doc, cv_data.get('summary', ''))
+    # Professional Summary
+    add_cv_section_heading(doc, 'PROFESSIONAL SUMMARY')
+    _render_summary(doc, cv_data.get('summary', ''))
 
     is_tech_role = cv_data.get('tech_role', False)
 
-    def add_skills_section(doc, cv_data):
-        add_section_heading(doc, "SKILLS")
-        p_comp = doc.add_paragraph()
-        p_comp.paragraph_format.space_before = Pt(4)
-        p_comp.paragraph_format.space_after = Pt(6)
-        r_comp = p_comp.add_run(cv_data['competencies'])
-        set_run_font(r_comp, size=10.5, bold=False, color=(46, 117, 182))
+    # Technical Skills — top for tech roles
+    if is_tech_role and cv_data.get('technical_skills'):
+        add_cv_section_heading(doc, 'TECHNICAL SKILLS')
+        p_tech = doc.add_paragraph()
+        r_tech = p_tech.add_run(cv_data['technical_skills'])
+        set_run_font(r_tech, size=10.5)
 
-    def add_technical_skills_section(doc, cv_data):
-        if cv_data.get('technical_skills'):
-            add_section_heading(doc, "TECHNICAL SKILLS")
-            p_tech = doc.add_paragraph()
-            r_tech = p_tech.add_run(cv_data['technical_skills'])
-            set_run_font(r_tech, size=10.5)
+    # Skills / Competencies
+    add_cv_section_heading(doc, 'SKILLS')
+    p_comp = doc.add_paragraph()
+    p_comp.paragraph_format.space_before = Pt(4)
+    p_comp.paragraph_format.space_after  = Pt(6)
+    r_comp = p_comp.add_run(cv_data['competencies'])
+    set_run_font(r_comp, size=10.5, color=(46, 117, 182))
 
-    # Tech roles: Technical Skills comes before Skills and Work Experience
-    if is_tech_role:
-        add_technical_skills_section(doc, cv_data)
-    add_skills_section(doc, cv_data)
-
-    # WORK EXPERIENCE
-    add_section_heading(doc, "WORK EXPERIENCE")
+    # Work Experience
+    add_cv_section_heading(doc, 'WORK EXPERIENCE')
     for role in cv_data['employment']:
-        # Role header: TITLE | COMPANY | DATES
         p_role = doc.add_paragraph()
         p_role.paragraph_format.space_before = Pt(8)
-        p_role.paragraph_format.space_after = Pt(1)
+        p_role.paragraph_format.space_after  = Pt(1)
         r_role = p_role.add_run(role['header'])
         set_run_font(r_role, size=10.5, bold=True)
 
-        # Context line (italic)
         if role.get('context'):
             p_ctx = doc.add_paragraph()
             p_ctx.paragraph_format.space_before = Pt(1)
-            p_ctx.paragraph_format.space_after = Pt(3)
+            p_ctx.paragraph_format.space_after  = Pt(3)
             r_ctx = p_ctx.add_run(role['context'])
-            set_run_font(r_ctx, size=10, italic=True, color=(80, 80, 80))
+            set_run_font(r_ctx, size=10, italic=True, color=MID_GREY)
 
-        # Achievement bullets
         for bullet in (role.get('bullets') or []):
             add_bullet(doc, bullet)
 
-    # ADDITIONAL EXPERIENCE (formerly "Earlier Career" — broader ATS recognition)
+    # Additional Experience
     if cv_data.get('earlier_career'):
-        add_section_heading(doc, "ADDITIONAL EXPERIENCE")
+        add_cv_section_heading(doc, 'ADDITIONAL EXPERIENCE')
         for item in cv_data['earlier_career']:
-            # Defensive: handle both plain strings and legacy dict format
             if isinstance(item, dict):
                 title = item.get('title', '') or ''
-                text = item.get('text', '') or ''
-                line = title + (' — ' + text if text else '')
+                text  = item.get('text', '')  or ''
+                line  = title + (' - ' + text if text else '')
             else:
                 line = str(item) if item is not None else ''
             if line:
                 add_bullet(doc, line)
 
-    # EDUCATION
+    # Education
     if cv_data.get('education'):
-        add_section_heading(doc, "EDUCATION")
+        add_cv_section_heading(doc, 'EDUCATION')
         for item in cv_data['education']:
             add_bullet(doc, item)
 
-    # TECHNICAL SKILLS — at the bottom for non-tech roles
-    if not is_tech_role:
-        add_technical_skills_section(doc, cv_data)
+    # Technical Skills — bottom for non-tech roles
+    if not is_tech_role and cv_data.get('technical_skills'):
+        add_cv_section_heading(doc, 'TECHNICAL SKILLS')
+        p_tech = doc.add_paragraph()
+        r_tech = p_tech.add_run(cv_data['technical_skills'])
+        set_run_font(r_tech, size=10.5)
 
-    # Page break before changelog
-    doc.add_paragraph().add_run("").font.size = Pt(1)
-    from docx.oxml import OxmlElement as OE
+
+# ---------------------------------------------------------------------------
+# REPORT CONTENT BLOCK
+# ---------------------------------------------------------------------------
+
+def _add_report_content(doc, cv_data):
+    """Full DHM-branded report — foreword through sign-off."""
+
+    first = _first_name(cv_data['name'])
+    client_name = cv_data['name'].title()
+
+    # --- Logo ---
+    p_logo = doc.add_paragraph()
+    p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_logo.paragraph_format.space_before = Pt(0)
+    p_logo.paragraph_format.space_after  = Pt(0)
+    p_logo.add_run().add_picture(LOGO_PATH, width=Inches(1.8))
+
+    p_logo_rule = doc.add_paragraph()
+    p_logo_rule.paragraph_format.space_before = Pt(0)
+    p_logo_rule.paragraph_format.space_after  = Pt(12)
+    add_horizontal_rule(p_logo_rule, color='DC6A63')
+
+    # --- Title ---
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_before = Pt(12)
+    p_title.paragraph_format.space_after  = Pt(12)
+    r_name = p_title.add_run(client_name)
+    set_run_font(r_name, name='Inter', size=14, bold=True, color=CORAL)
+    r_sub = p_title.add_run(' - CV Optimisation Report')
+    set_run_font(r_sub, name='Inter', size=14, bold=True, color=DARK_GREY)
+
+    p_title_rule = doc.add_paragraph()
+    p_title_rule.paragraph_format.space_before = Pt(0)
+    p_title_rule.paragraph_format.space_after  = Pt(18)
+    add_horizontal_rule(p_title_rule, color='DC6A63')
+
+    # --- Foreword ---
+    p_lead = doc.add_paragraph()
+    r_lead = p_lead.add_run('Your optimised CV is ready.')
+    set_run_font(r_lead, size=10.5, color=CORAL)
+    p_lead.paragraph_format.space_after = Pt(8)
+
+    add_body(doc,
+        'It has been completely rebuilt - the structure, the language, the framing of your '
+        'achievements, and the keywords that will carry you through automated screening before '
+        'a recruiter ever sees your name.'
+    )
+    add_body(doc,
+        'You have done the hard work to get here. This document finally reflects it properly.'
+    )
+
+    # --- How We Approach CV Optimisation ---
+    add_report_section_heading(doc, 'How We Approach CV Optimisation')
+    add_subheading(doc, 'What we consider, and why it matters.')
+
+    add_body(doc,
+        'Every CV we optimise is evaluated against two distinct stages of the hiring process. '
+        'Both matter. Failing either one ends your application before it has begun.'
+    )
+
+    add_stage_heading(doc, 'Stage One: The Technology')
+    add_body(doc,
+        'Before a recruiter reads a single word, your CV is processed by an Applicant Tracking '
+        'System. ATS software parses your document and scores it against the job specification. '
+        'If the right signals are not present, the CV is rejected automatically. No human sees it.'
+    )
+    add_body(doc,
+        'Those signals include formatting, keywords, job title alignment, section headings, '
+        'achievement framing, and industry-specific terminology. Each of these has been addressed '
+        'in your optimised CV, because getting any one of them wrong is enough to trigger an '
+        'automated rejection.'
+    )
+    add_body(doc,
+        'Your CV has been saved as a Word document (.docx), the standard format for ATS '
+        'submissions. PDF and PowerPoint files are not reliably parsed by all systems and can '
+        'result in an automatic rejection. We recommend keeping it in this format when applying.'
+    )
+
+    add_stage_heading(doc, 'Stage Two: The Human')
+    add_body(doc,
+        'If your CV clears the ATS stage, it reaches a recruiter or hiring manager. At this '
+        'point, the challenge changes. Research consistently shows that initial CV decisions are '
+        'made within the first few seconds of opening a document. In that window, the reader is '
+        'scanning for one thing: evidence that this person can do what we need.'
+    )
+    add_body(doc,
+        'To make sure your CV holds attention beyond that first scan, we focus on several things:',
+        space_after=4
+    )
+
+    approach_bullets = [
+        ('Executive Summary',
+         'this is the first thing a hiring manager reads. Yours has been written to lead with '
+         'impact, drawing out your strongest achievements and most relevant experience so the '
+         'reader knows immediately what you bring to the table.'),
+        ('Achievement framing',
+         'every role focuses on results and the impact you had on the business, not just '
+         'responsibilities. Hiring managers are looking for evidence of contribution, not a '
+         'list of duties.'),
+        ('Career progression clarity',
+         'your career story is presented in a way that is easy to follow, demonstrating growth '
+         'and increasing responsibility where it exists.'),
+        ('Relevance to the target role',
+         'the language, experience, and skills most relevant to the roles you are targeting have '
+         'been brought forward. What is less relevant has been deprioritised.'),
+        ('Consistency of tone and language',
+         'the document reads as a coherent whole, with a professional and consistent voice '
+         'throughout.'),
+        ('Removal of anything working against you',
+         'anything that could create an unconscious bias or distract from your strengths has '
+         'been reviewed and addressed.'),
+    ]
+    for label, text in approach_bullets:
+        add_approach_bullet(doc, label, text)
+
+    add_stage_heading(doc, 'Why both stages matter')
+    add_body(doc,
+        'A CV that passes ATS but reads poorly to a human does not get an interview. A CV that '
+        'reads well but fails ATS never reaches a human at all. Every decision made in your '
+        'optimised CV - formatting, structure, language, and framing - has been made with both '
+        'stages in mind.'
+    )
+    add_body(doc,
+        'The goal is straightforward: to get you in front of the right person, face to face, '
+        'where you can do what no CV can do. Bring your story to life.',
+        bold=True,
+        space_after=10
+    )
+
+    # --- What I Changed ---
+    add_report_section_heading(doc, 'What I Changed - and Why')
+    add_subheading(doc, 'Every change was deliberate. Here is the thinking behind each one.')
+
+    for i, item in enumerate(cv_data.get('changelog', []), 1):
+        add_numbered_item(doc, i, item['title'], item['text'])
+
+    # --- My Honest Assessment ---
+    doc.add_paragraph()
+    add_report_section_heading(doc, 'My Honest Assessment')
+    add_subheading(doc,
+        f'The CV is stronger, {first}. These are the things worth knowing as you head into your search.'
+    )
+
+    for i, item in enumerate(cv_data.get('gap_report', []), 1):
+        add_numbered_item(doc, i, item['title'], item['text'])
+
+    p_gap_note = doc.add_paragraph()
+    r_gap_note = p_gap_note.add_run(
+        'Addressing even one or two of these points before you start applying will put you '
+        'meaningfully ahead. The changes are straightforward. The difference they make to your '
+        'results will not be.'
+    )
+    set_run_font(r_gap_note, size=10.5, bold=True, color=BLACK)
+    p_gap_note.paragraph_format.space_before = Pt(6)
+    p_gap_note.paragraph_format.space_after  = Pt(24)
+
+    # --- Thank You ---
+    add_report_section_heading(doc, 'Thank You')
+    add_subheading(doc, 'It is a privilege to work on something that matters this much.')
+
+    add_body(doc,
+        'Thank you for choosing Dear Hiring Manager. Helping people navigate a system that '
+        'was not built in their favour is why we do this. We hope your optimised CV opens '
+        'the doors it deserves to.'
+    )
+    add_body(doc,
+        'When you are ready to go further, we can help with three things:',
+        space_after=4
+    )
+
+    next_steps = [
+        ('LinkedIn Profile Optimisation',
+         'aligning your LinkedIn presence with your optimised CV so every touchpoint tells '
+         'the same story. Recruiters check both. They need to match.'),
+        ('Job Search Strategy',
+         'a structured approach to targeting the right roles, in the right organisations, '
+         'in the right way. More signal. Less noise.'),
+        ('Interview Preparation and Mock Interviews',
+         'when the CV gets you through the door, you need to be ready for what comes next. '
+         'We work with you to prepare for interviews, sharpen your answers, and walk in '
+         'with confidence.'),
+    ]
+    for label, text in next_steps:
+        add_next_step_bullet(doc, label, text)
+
+    p_cta = doc.add_paragraph()
+    p_cta.paragraph_format.space_before = Pt(6)
+    p_cta.paragraph_format.space_after  = Pt(6)
+    r_cta_pre = p_cta.add_run('All three are available at ')
+    set_run_font(r_cta_pre, size=10.5, bold=True, color=CORAL)
+    add_hyperlink(p_cta, 'https://www.dearhiringmanager.careers',
+                  'www.DearHiringManager.careers', CORAL, size=10.5, bold=True)
+    r_cta_dot = p_cta.add_run('.')
+    set_run_font(r_cta_dot, size=10.5, bold=True, color=CORAL)
+
+    # --- Sign-off ---
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+    p_sig = doc.add_paragraph()
+    p_sig.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p_sig.paragraph_format.space_before = Pt(0)
+    p_sig.paragraph_format.space_after  = Pt(0)
+    p_sig.add_run().add_picture(SIG_PATH, width=Inches(4.25))
+
+
+# ---------------------------------------------------------------------------
+# PUBLIC BUILD FUNCTIONS
+# ---------------------------------------------------------------------------
+
+def build_cv_only(cv_data, output_path):
+    """Client-facing CV — clean, no DHM branding."""
+    doc = Document()
+    _setup_page(doc)
+    _add_cv_content(doc, cv_data)
+    doc.save(output_path)
+    print(f'Saved CV: {output_path}')
+
+
+def build_report_only(cv_data, output_path):
+    """DHM-branded strategic report — foreword through sign-off."""
+    doc = Document()
+    _setup_page(doc)
+    _add_report_content(doc, cv_data)
+    doc.save(output_path)
+    print(f'Saved Report: {output_path}')
+
+
+def build_cv_doc(cv_data, output_path):
+    """Combined document — CV + report (legacy / testing use)."""
+    doc = Document()
+    _setup_page(doc)
+
+    p_s1 = doc.add_paragraph()
+    r_s1 = p_s1.add_run('SECTION 1 - REWRITTEN CV DRAFT')
+    set_run_font(r_s1, name='Inter', size=11, bold=True, color=CORAL)
+    r_s1.font.underline = True
+    p_s1.paragraph_format.space_after = Pt(10)
+
+    _add_cv_content(doc, cv_data)
+
     p_break = doc.add_paragraph()
     run_break = p_break.add_run()
-    br = OE('w:br')
+    br = OxmlElement('w:br')
     br.set(qn('w:type'), 'page')
     run_break._r.append(br)
 
-    # ===================================
-    # SECTION 2 — STRATEGIC CHANGELOG
-    # ===================================
-    p_s2 = doc.add_paragraph()
-    r_s2 = p_s2.add_run("SECTION 2 — STRATEGIC CHANGELOG")
-    set_run_font(r_s2, size=11, bold=True, color=(46, 64, 87))
-    r_s2.font.underline = True
-    p_s2.paragraph_format.space_after = Pt(4)
-
-    p_s2sub = doc.add_paragraph()
-    r_s2sub = p_s2sub.add_run("What was changed from the original CV and why:")
-    set_run_font(r_s2sub, size=10, italic=True, color=(80, 80, 80))
-    p_s2sub.paragraph_format.space_after = Pt(8)
-
-    for i, item in enumerate(cv_data['changelog'], 1):
-        add_numbered_item(doc, i, item['title'], item['text'])
-
-    # ===================================
-    # SECTION 3 — GAP REPORT
-    # ===================================
-    doc.add_paragraph()
-    p_s3 = doc.add_paragraph()
-    r_s3 = p_s3.add_run("SECTION 3 — GAP REPORT")
-    set_run_font(r_s3, size=11, bold=True, color=(46, 64, 87))
-    r_s3.font.underline = True
-    p_s3.paragraph_format.space_after = Pt(4)
-
-    p_s3sub = doc.add_paragraph()
-    r_s3sub = p_s3sub.add_run("Honest assessment of gaps between current profile and target role, with recommended actions:")
-    set_run_font(r_s3sub, size=10, italic=True, color=(80, 80, 80))
-    p_s3sub.paragraph_format.space_after = Pt(8)
-
-    for i, item in enumerate(cv_data['gap_report'], 1):
-        add_numbered_item(doc, i, item['title'], item['text'])
-
+    _add_report_content(doc, cv_data)
     doc.save(output_path)
-    print(f"Saved: {output_path}")
+    print(f'Saved combined: {output_path}')
 
+
+# ---------------------------------------------------------------------------
+# TEST DATA
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # === JAMES CARTER TEST DATA ===
     cv_data = {
-        "tech_role": False,
-        "name": "JAMES CARTER",
-        "tagline": "Senior Marketing Manager | Head of Marketing | Demand Generation Lead",
-        "contact": "07XXX XXXXXX  •  brendan.johns@dearhiringmanager.careers  •  London, UK",
-        "summary": "A demand generation leader who built TechFlow's entire marketing function from scratch, generating £4.2M in attributed pipeline revenue — 67% year-on-year growth — and cutting customer acquisition cost by 31% in the process. Known for building data-driven marketing engines that align tightly with sales, with a consistent focus on pipeline impact over brand activity, recognised externally by a Best B2B Campaign win at the Northern Digital Awards 2020. Equally comfortable setting strategy and getting hands-on with execution, with deep expertise spanning B2B SaaS, Account-Based Marketing (ABM), paid acquisition, and organic growth across eight years in the sector.\n\nNow seeking a Head of Marketing or Senior Marketing Manager role with full ownership of pipeline strategy, team, and budget — bringing a proven ability to build from zero and scale commercial outcomes.",
-        "competencies": "Demand Generation Strategy  •  B2B SaaS Marketing  •  Account-Based Marketing (ABM)  •  Paid Search and Paid Media  •  SEO and Content Strategy  •  Budget Ownership and ROI Reporting  •  CRM and Marketing Automation (HubSpot, Salesforce)  •  Marketing Attribution  •  Team Leadership and People Management  •  Stakeholder Management  •  Data-Driven Decision Making  •  B2B Content Marketing  •  Pipeline Revenue Growth  •  Cross-Functional Leadership",
-        "employment": [
+        'tech_role': False,
+        'name': 'JAMES CARTER',
+        'tagline': 'Senior Marketing Manager | Head of Marketing | Demand Generation Lead',
+        'contact': '07XXX XXXXXX  •  james.carter@email.com  •  London, UK',
+        'summary': (
+            'A demand generation leader who built TechFlow\'s entire marketing function from '
+            'scratch, generating £4.2M in attributed pipeline revenue - 67% year-on-year growth - '
+            'and cutting customer acquisition cost by 31% in the process. Known for building '
+            'data-driven marketing engines that align tightly with sales, with a consistent '
+            'focus on pipeline impact over brand activity.\n\n'
+            'Now seeking a Head of Marketing or Senior Marketing Manager role with full '
+            'ownership of pipeline strategy, team, and budget.'
+        ),
+        'competencies': (
+            'Demand Generation Strategy  •  B2B SaaS Marketing  •  Account-Based Marketing (ABM)  '
+            '•  Paid Search and Paid Media  •  SEO and Content Strategy  •  Budget Ownership and '
+            'ROI Reporting  •  CRM and Marketing Automation (HubSpot, Salesforce)  •  Marketing '
+            'Attribution  •  Team Leadership  •  Stakeholder Management'
+        ),
+        'employment': [
             {
-                "header": "MARKETING MANAGER  |  TECHFLOW LTD  |  Feb 2021 – Present",
-                "context": "Series A B2B SaaS platform targeting mid-market financial services firms. Hired as first marketing employee to build the function from scratch. Full ownership of pipeline revenue, brand, budget, and a team of 2 direct reports plus freelancer network.",
-                "bullets": [
-                    "Generated £4.2M in attributed pipeline revenue in FY2024 — 67% YoY — recognised by the CEO as TechFlow's single biggest commercial growth driver.",
-                    "Cut wasted paid search spend from £12K to £4K per month and reduced customer acquisition cost by 31% while growing pipeline volume by 67% YoY.",
-                    "Built a 120-article SEO library, scaling organic traffic from 8,000 to 47,000 monthly sessions in 18 months and establishing organic as the #1 pipeline channel.",
-                    "Delivered 6 integrated campaigns per year across sales, product, and design — every campaign tied directly to quarterly revenue targets.",
-                    "Implemented HubSpot CRM and full marketing automation from zero, enabling attribution reporting and pipeline visibility across the entire revenue team."
-                ]
-            },
-            {
-                "header": "DIGITAL MARKETING EXECUTIVE  |  MEDIABRIDGE UK  |  Jan 2018 – Jan 2021",
-                "context": "B2B digital marketing agency managing paid and organic campaigns for a portfolio of 12 technology clients. Combined monthly ad spend under management: £180K.",
-                "bullets": [
-                    "Delivered 4.8x average ROAS across 12 client PPC accounts — 37% above the agency's 3.5x benchmark; ranked top 3 for commercial performance in 2019 and 2020.",
-                    "Won Best B2B Campaign, Northern Digital Awards 2020 — LinkedIn ABM targeting 200 accounts; 340% ROI and 18 qualified enterprise leads.",
-                    "Promoted Executive to Senior Executive in 14 months — fastest progression in the company's 12-year history.",
-                    "Reduced client reporting time by 30% through Looker Studio automation across £180K monthly spend under management."
+                'header': 'MARKETING MANAGER  |  TECHFLOW LTD  |  Feb 2021 - Present',
+                'context': 'Series A B2B SaaS platform. First marketing hire; built the function from scratch.',
+                'bullets': [
+                    'Generated £4.2M in attributed pipeline revenue in FY2024 - 67% YoY - recognised by the CEO as TechFlow\'s single biggest commercial growth driver.',
+                    'Cut wasted paid search spend from £12K to £4K per month and reduced customer acquisition cost by 31% while growing pipeline volume by 67% YoY.',
+                    'Built a 120-article SEO library, scaling organic traffic from 8,000 to 47,000 monthly sessions in 18 months.',
                 ]
             }
         ],
-        "earlier_career": [
-            "Marketing Assistant  |  Digital Spark Agency  |  Sep 2016 – Feb 2018  —  Grew combined client social following by 22,000 in 12 months (target: 15,000); built email nurture sequences achieving 38% open rate against a 21% industry benchmark."
+        'earlier_career': [
+            'Marketing Assistant  |  Digital Spark Agency  |  Sep 2016 - Feb 2018  -  '
+            'Grew combined client social following by 22,000 in 12 months; built email nurture '
+            'sequences achieving 38% open rate against a 21% industry benchmark.'
         ],
-        "education": [
-            "BA (Hons) Marketing, 2:1  —  University of Leeds (2013–2016)",
-            "HubSpot Marketing Software Certification  —  2023",
-            "Google Ads Search Certification  —  2024",
-            "CIM Chartered Marketer  —  In progress, expected completion 2026"
+        'education': [
+            'BA (Hons) Marketing, 2:1  -  University of Leeds (2013-2016)',
+            'HubSpot Marketing Software Certification  -  2023',
         ],
-        "technical_skills": "HubSpot  •  Salesforce  •  Google Analytics 4  •  SEMrush  •  Ahrefs  •  Google Ads  •  Meta Ads  •  LinkedIn Campaign Manager  •  Marketo  •  Webflow  •  Looker Studio  •  Notion",
-        "changelog": [
-            {"title": "ATS title injection", "text": "Inserted target job titles directly under the candidate name. ATS systems match on exact title keywords before a human reads the document."},
-            {"title": "Professional Summary restructured", "text": "Rewritten as a four-sentence narrative: identity + metric, signature strength, breadth, career objective. Previous version read as a bullet list in paragraph form."},
-            {"title": "Skills section added", "text": "Did not exist in original CV. Keyword-dense skills section acts as an ATS anchor and gives the human reader an instant capability snapshot before they assess experience."},
-            {"title": "TechFlow role reframed with context subheading", "text": "Without context, a first marketing hire at an unknown Series A reads as a mid-level role. The context line clarifies scope and prevents ATS/recruiter undervaluation."},
-            {"title": "ROAS and agency benchmarks added", "text": "Original CV described agency work without commercial benchmarks. Added 4.8x vs 3.5x benchmark and top-3 ranking — industry-standard performance indicators at this level."},
-            {"title": "Education and Technical Skills sections added", "text": "Neither appeared in original CV. At Senior Manager / Head of level in B2B SaaS, certifications and named tools are active ATS filter criteria."}
+        'technical_skills': (
+            'HubSpot  •  Salesforce  •  Google Analytics 4  •  SEMrush  •  Google Ads  '
+            '•  Meta Ads  •  LinkedIn Campaign Manager  •  Looker Studio'
+        ),
+        'changelog': [
+            {'title': 'ATS title injection',
+             'text': 'Your target job titles now appear directly under your name. ATS systems match on exact title strings before a human reads a word. Candidates without those strings are filtered out regardless of their experience.'},
+            {'title': 'Summary rebuilt around your strongest result',
+             'text': 'The original CV opened with context. Your optimised version opens with the number that matters most - £4.2M attributed pipeline, 67% year-on-year. That is what earns the next six seconds of attention.'},
+            {'title': 'Skills section built from scratch',
+             'text': 'This section did not exist in your original CV. A keyword-dense skills block gives the ATS a clean match signal and gives every human reader an immediate picture of what you bring.'},
         ],
-        "gap_report": [
-            {"title": "Team leadership evidence thin [HIGH PRIORITY]", "text": "CV references managing a team of 2 but lacks detail on people development or hiring. Head of Marketing roles require demonstrable people leadership. Recommended action: add one bullet per role on team-building or coaching outcomes."},
-            {"title": "Marketing budget size not stated [MEDIUM PRIORITY]", "text": "Total annual marketing budget owned at TechFlow is not mentioned. Budget ownership is a standard screening criterion at Senior Manager and above. Recommended action: state the annual budget figure in the TechFlow context line."},
-            {"title": "LinkedIn URL missing [LOW PRIORITY]", "text": "Contact section has no LinkedIn URL. Technology companies cross-reference LinkedIn as standard during screening. Recommended action: add full LinkedIn URL to the contact line."}
-        ]
+        'gap_report': [
+            {'title': 'Team leadership evidence needs strengthening [HIGH PRIORITY]',
+             'text': 'You led a team of two, and the CV carries almost no evidence of how. At Head of Marketing level, people leadership is a primary screening criterion. One specific achievement bullet per role on coaching, hiring, or development outcomes will close this gap significantly.'},
+            {'title': 'Marketing budget ownership is not stated [MEDIUM PRIORITY]',
+             'text': 'The annual budget you owned at TechFlow does not appear anywhere. Budget ownership is a standard filter at Senior Manager level and above. Adding the figure changes the weight of the role immediately.'},
+        ],
     }
-    output_path = "/sessions/kind-epic-bardeen/mnt/outputs/DHM_CV_Output_James_Carter.docx"
-    build_cv_doc(cv_data, output_path)
+
+    build_cv_only(cv_data, '/sessions/kind-epic-bardeen/mnt/outputs/DHM_CV_James_Carter.docx')
+    build_report_only(cv_data, '/sessions/kind-epic-bardeen/mnt/outputs/DHM_Report_James_Carter.docx')
