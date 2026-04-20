@@ -62,7 +62,7 @@ def parse_cv_draft(cv_data):
         'employment':       re.compile(r'PROFESSIONAL EXPERIENCE|EMPLOYMENT HISTORY|WORK EXPERIENCE|EMPLOYMENT|EXPERIENCE', re.I),
         'earlier_career':   re.compile(r'EARLIER CAREER|EARLY CAREER|PREVIOUS ROLES|ADDITIONAL EXPERIENCE', re.I),
         'education':        re.compile(r'EDUCATION|QUALIFICATIONS|ACADEMIC|CERTIFICATIONS', re.I),
-        'notes':            re.compile(r'^NOTES$|ADDITIONAL INFORMATION|ADDITIONAL NOTES', re.I),
+        'notes':            re.compile(r'NOTES|ADDITIONAL INFORMATION|ADDITIONAL NOTES|REFERENCES', re.I),
     }
 
     current_section = None
