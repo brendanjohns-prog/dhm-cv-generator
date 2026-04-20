@@ -32,6 +32,7 @@ def parse_cv_draft(cv_data):
     into the structured dict that build_cv_doc() expects.
     """
     raw = cv_data.get('cv_draft', '')
+    # Normalise escaped newlines that Claude sometimes outputs
     raw = raw.replace('\\n', '\n')
     lines = [l for l in raw.split('\n')]
     non_empty = [l.strip() for l in lines if l.strip()]
@@ -47,16 +48,21 @@ def parse_cv_draft(cv_data):
         'employment': [],
         'earlier_career': [],
         'education': [],
+        'notes': '',
         'changelog': [],
         'gap_report': [],
     }
 
+    # Section markers — order matters: more specific patterns must come before broader ones
+    # (technical_skills must precede competencies to avoid TECHNICAL SKILLS matching SKILLS)
     SECTION_PATTERNS = {
-        'summary': re.compile(r'EXECUTIVE SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|SUMMARY', re.I),
-        'competencies': re.compile(r'CORE COMPETENCIES|KEY COMPETENCIES|COMPETENCIES|KEY SKILLS|SKILLS PROFILE|SKILLS', re.I),
-        'employment': re.compile(r'PROFESSIONAL EXPERIENCE|EMPLOYMENT HISTORY|WORK EXPERIENCE|EMPLOYMENT|EXPERIENCE', re.I),
-        'earlier_career': re.compile(r'EARLIER CAREER|EARLY CAREER|PREVIOUS ROLES|ADDITIONAL EXPERIENCE', re.I),
-        'education': re.compile(r'EDUCATION|QUALIFICATIONS|ACADEMIC|CERTIFICATIONS', re.I),
+        'summary':          re.compile(r'EXECUTIVE SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|SUMMARY', re.I),
+        'technical_skills': re.compile(r'TECHNOLOGY STACK|TECHNICAL SKILLS|TECHNOLOGY SKILLS|TOOLS AND TECHNOLOGY|TECH STACK', re.I),
+        'competencies':     re.compile(r'CORE COMPETENCIES|KEY COMPETENCIES|COMPETENCIES|KEY SKILLS|SKILLS PROFILE|SKILLS', re.I),
+        'employment':       re.compile(r'PROFESSIONAL EXPERIENCE|EMPLOYMENT HISTORY|WORK EXPERIENCE|EMPLOYMENT|EXPERIENCE', re.I),
+        'earlier_career':   re.compile(r'EARLIER CAREER|EARLY CAREER|PREVIOUS ROLES|ADDITIONAL EXPERIENCE', re.I),
+        'education':        re.compile(r'EDUCATION|QUALIFICATIONS|ACADEMIC|CERTIFICATIONS', re.I),
+        'notes':            re.compile(r'^NOTES$|ADDITIONAL INFORMATION|ADDITIONAL NOTES', re.I),
     }
 
     current_section = None
@@ -66,16 +72,27 @@ def parse_cv_draft(cv_data):
         if not current_section or not section_lines:
             return
         content = '\n'.join(section_lines).strip()
+
         if current_section == 'summary':
             structured['summary'] = content
+
         elif current_section == 'competencies':
             structured['competencies'] = content
+
+        elif current_section == 'technical_skills':
+            structured['technical_skills'] = content
+
+        elif current_section == 'notes':
+            structured['notes'] = content  # stored but not rendered in CV
+
         elif current_section == 'education':
             for line in section_lines:
                 line = line.strip()
                 if line:
                     structured['education'].append(line)
+
         elif current_section in ('employment', 'earlier_career'):
+            # Parse roles: header line + context + bullet points
             roles = []
             current_role = None
             for line in section_lines:
@@ -83,6 +100,7 @@ def parse_cv_draft(cv_data):
                 if not line:
                     continue
                 is_bullet = line.startswith('•') or line.startswith('-') or line.startswith('*')
+                # Role header: typically has | separators and a 4-digit year
                 is_header = bool(re.search(r'\d{4}', line)) and '|' in line
                 if is_header:
                     if current_role:
@@ -98,6 +116,7 @@ def parse_cv_draft(cv_data):
                     else:
                         current_role['context'] += ' ' + line
                 else:
+                    # No role started yet — treat as raw earlier-career item
                     roles.append({'title': line, 'text': ''})
             if current_role:
                 roles.append(current_role)
@@ -105,19 +124,31 @@ def parse_cv_draft(cv_data):
             if current_section == 'employment':
                 structured['employment'] = roles
             else:
-                structured['earlier_career'] = [
-                    {'title': r.get('header', r.get('title', '')),
-                     'text': r.get('context', r.get('text', ''))}
-                    for r in roles
-                ]
+                # Earlier career: generate_cv.py expects plain strings, not dicts
+                ec_items = []
+                for r in roles:
+                    title = r.get('header', r.get('title', ''))
+                    # Strip leading bullet/dash characters
+                    title = title.lstrip('-•* ').strip()
+                    context = r.get('context', r.get('text', ''))
+                    bullets = r.get('bullets', [])
+                    combined = title
+                    if context:
+                        combined += ' — ' + context
+                    if bullets:
+                        combined += (' — ' if not context else '; ') + '; '.join(bullets)
+                    if combined:
+                        ec_items.append(combined)
+                structured['earlier_career'] = ec_items
 
-    for line in lines[3:]:
+    for line in lines[3:]:  # Skip name/tagline/contact
         stripped = line.strip()
         matched = None
         for sec, pattern in SECTION_PATTERNS.items():
             if pattern.fullmatch(stripped) or (stripped.isupper() and len(stripped) > 3 and pattern.search(stripped)):
                 matched = sec
                 break
+
         if matched:
             flush_section()
             current_section = matched
@@ -127,16 +158,20 @@ def parse_cv_draft(cv_data):
 
     flush_section()
 
+    # --- Parse changelog and gap_report ---
     def parse_text_items(text):
+        """Convert text blob to [{title, text}] list."""
         if not text:
             return []
         text = text.replace('\\n', '\n')
         items = []
+        # Try to split on numbered list or dashes
         parts = re.split(r'\n(?=\d+[\.\)]\s|\-\s|\•\s)', text)
         for part in parts:
             part = part.strip().lstrip('0123456789.)- •')
             if not part:
                 continue
+            # First line = title, rest = body
             sub = part.split('\n', 1)
             title = sub[0].strip()
             body = sub[1].strip() if len(sub) > 1 else ''
@@ -170,6 +205,7 @@ def generate():
 
         logger.info("cv_data keys: %s", list(cv_data.keys()))
 
+        # Detect format and normalise to structured dict
         if 'cv_draft' in cv_data:
             logger.info("Detected cv_draft format — converting to structured")
             cv_data = parse_cv_draft(cv_data)
