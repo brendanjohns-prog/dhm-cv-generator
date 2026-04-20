@@ -4,10 +4,10 @@ DHM CV Optimisation Pipeline - Document Generator
 Produces consistently formatted .docx files matching the DHM brand standard.
 
 Brand colours:
-  Deep Coral   #DC6A63  (220, 106, 99)  — primary accent
+  Deep Coral   #DC6A63  (220, 106, 99)  â primary accent
   Black        #000000  (0, 0, 0)
   White        #FFFFFF  (255, 255, 255)
-  Soft Blue    #B8C0CC  (184, 192, 204)  — secondary accent
+  Soft Blue    #B8C0CC  (184, 192, 204)  â secondary accent
   Dark Grey    #444444  (68, 68, 68)
 """
 import os
@@ -129,7 +129,7 @@ def remove_table_borders(table):
 
 
 # ---------------------------------------------------------------------------
-# CV SECTION HELPERS  (navy palette — CV styling, not DHM brand)
+# CV SECTION HELPERS  (navy palette â CV styling, not DHM brand)
 # ---------------------------------------------------------------------------
 
 def add_cv_section_heading(doc, text):
@@ -203,16 +203,34 @@ def add_approach_bullet(doc, bold_label, text):
     return p
 
 
+def _render_parsed_text(paragraph, text, base_color=None, base_size=10.5):
+    """Render text, converting *highlighted* spans to coral bold (no asterisks)."""
+    if base_color is None:
+        base_color = DARK_GREY
+    parts = re.split(r'\*([^*]+)\*', str(text))
+    for i, part in enumerate(parts):
+        if not part:
+            continue
+        if i % 2 == 1:          # inside asterisks â coral bold
+            r = paragraph.add_run(part)
+            set_run_font(r, size=base_size, bold=True, color=CORAL)
+        else:                     # outside asterisks â base colour, not bold
+            r = paragraph.add_run(part)
+            set_run_font(r, size=base_size, color=base_color)
+
+
 def add_numbered_item(doc, number, bold_title, text):
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(2)
     p.paragraph_format.space_after  = Pt(8)
+    # Coral bold number prefix
     r1 = p.add_run(f'{number}. ')
     set_run_font(r1, size=10.5, bold=True, color=CORAL)
-    r2 = p.add_run(str(bold_title) + ' - ')
-    set_run_font(r2, size=10.5, bold=True, color=BLACK)
-    r3 = p.add_run(str(text))
-    set_run_font(r3, size=10.5, color=DARK_GREY)
+    # Merge title + text into one string â no forced bold, asterisks become coral
+    content = str(bold_title) if bold_title else ''
+    if text:
+        content += (' - ' if content else '') + str(text)
+    _render_parsed_text(p, content)
     return p
 
 
@@ -242,7 +260,7 @@ def _render_summary(doc, summary_text):
 
     if len(parts) == 1:
         seeking_match = re.search(
-            r'(?<=[.!?])\s+((?:Now\s+)?(?:[Ss]eeking|[Ll]ooking\s+for|[Tt]argeting\s+a|[Oo]pen\s+to)\b)',
+            r'(?<=[.!_])\s+((?Now\s+)?(?:[Ss]eeking|[Ll]ooking\s+for|[Tt]argeting\s+a|[Oo]pen\s+to)\b)',
             summary_text
         )
         if seeking_match:
@@ -266,7 +284,7 @@ def _render_summary(doc, summary_text):
 # ---------------------------------------------------------------------------
 
 def _add_cv_content(doc, cv_data):
-    """Clean client-facing CV — name block through Technical Skills."""
+    """Clean client-facing CV â name block through Technical Skills."""
 
     # Name
     p_name = doc.add_paragraph()
@@ -296,7 +314,7 @@ def _add_cv_content(doc, cv_data):
 
     is_tech_role = cv_data.get('tech_role', False)
 
-    # Technical Skills — top for tech roles
+    # Technical Skills â top for tech roles
     if is_tech_role and cv_data.get('technical_skills'):
         add_cv_section_heading(doc, 'TECHNICAL SKILLS')
         p_tech = doc.add_paragraph()
@@ -349,7 +367,7 @@ def _add_cv_content(doc, cv_data):
         for item in cv_data['education']:
             add_bullet(doc, item)
 
-    # Technical Skills — bottom for non-tech roles
+    # Technical Skills â bottom for non-tech roles
     if not is_tech_role and cv_data.get('technical_skills'):
         add_cv_section_heading(doc, 'TECHNICAL SKILLS')
         p_tech = doc.add_paragraph()
@@ -362,7 +380,7 @@ def _add_cv_content(doc, cv_data):
 # ---------------------------------------------------------------------------
 
 def _add_report_content(doc, cv_data):
-    """Full DHM-branded report — foreword through sign-off."""
+    """Full DHM-branded report â foreword through sign-off."""
 
     first = _first_name(cv_data['name'])
     client_name = cv_data['name'].title()
@@ -537,7 +555,7 @@ def _add_report_content(doc, cv_data):
          'in the right way. More signal. Less noise.'),
         ('Interview Preparation and Mock Interviews',
          'when the CV gets you through the door, you need to be ready for what comes next. '
-         'We work with you to prepare for interviews, sharpen your answers, and walk in '
+         'we work with you to prepare for interviews, sharpen your answers, tand walk in '
          'with confidence.'),
     ]
     for label, text in next_steps:
@@ -567,7 +585,7 @@ def _add_report_content(doc, cv_data):
 # ---------------------------------------------------------------------------
 
 def build_cv_only(cv_data, output_path):
-    """Client-facing CV — clean, no DHM branding."""
+    """Client-facing CV â clean, no DHM branding."""
     doc = Document()
     _setup_page(doc)
     _add_cv_content(doc, cv_data)
@@ -576,7 +594,7 @@ def build_cv_only(cv_data, output_path):
 
 
 def build_report_only(cv_data, output_path):
-    """DHM-branded strategic report — foreword through sign-off."""
+    """DHM-branded strategic report â foreword through sign-off."""
     doc = Document()
     _setup_page(doc)
     _add_report_content(doc, cv_data)
@@ -585,7 +603,7 @@ def build_report_only(cv_data, output_path):
 
 
 def build_cv_doc(cv_data, output_path):
-    """Combined document — CV + report (legacy / testing use)."""
+    """Combined document â CV + report (legacy / testing use)."""
     doc = Document()
     _setup_page(doc)
 
@@ -617,10 +635,10 @@ if __name__ == '__main__':
         'tech_role': False,
         'name': 'JAMES CARTER',
         'tagline': 'Senior Marketing Manager | Head of Marketing | Demand Generation Lead',
-        'contact': '07XXX XXXXXX  •  james.carter@email.com  •  London, UK',
+        'contact': '07XXX XXXXXX  â¢  james.carter@email.com  â¢  London, UK',
         'summary': (
             'A demand generation leader who built TechFlow\'s entire marketing function from '
-            'scratch, generating £4.2M in attributed pipeline revenue - 67% year-on-year growth - '
+            'scratch, generating Â£4.2M in attributed pipeline revenue - 67% year-on-year growth - '
             'and cutting customer acquisition cost by 31% in the process. Known for building '
             'data-driven marketing engines that align tightly with sales, with a consistent '
             'focus on pipeline impact over brand activity.\n\n'
@@ -628,18 +646,18 @@ if __name__ == '__main__':
             'ownership of pipeline strategy, team, and budget.'
         ),
         'competencies': (
-            'Demand Generation Strategy  •  B2B SaaS Marketing  •  Account-Based Marketing (ABM)  '
-            '•  Paid Search and Paid Media  •  SEO and Content Strategy  •  Budget Ownership and '
-            'ROI Reporting  •  CRM and Marketing Automation (HubSpot, Salesforce)  •  Marketing '
-            'Attribution  •  Team Leadership  •  Stakeholder Management'
+            'Demand Generation Strategy  â¢  B2B SaaS Marketing  â¢  Account-Based Marketing (ABM)  '
+            'â¢  Paid Search and Paid Media  â¢  SEO and Content Strategy  â¢  Budget Ownership and '
+            'ROI Reporting  â¢  CRM and Marketing Automation (HubSpot, Salesforce)  â¢  Marketing '
+            'Attribution  â¢  Team Leadership  â¢  Stakeholder Management'
         ),
         'employment': [
             {
-                'header': 'MARKETING MANAGER  |  TECHFLOW LTD  |  Feb 2021 - Present',
+                'header': 'MARKETING MANAGER  |  TECHELOW LTD  |  Feb 2021 - Present',
                 'context': 'Series A B2B SaaS platform. First marketing hire; built the function from scratch.',
                 'bullets': [
-                    'Generated £4.2M in attributed pipeline revenue in FY2024 - 67% YoY - recognised by the CEO as TechFlow\'s single biggest commercial growth driver.',
-                    'Cut wasted paid search spend from £12K to £4K per month and reduced customer acquisition cost by 31% while growing pipeline volume by 67% YoY.',
+                    'Generated Â£4.2M in attributed pipeline revenue in FY2024 - 67% YoY - recognised by the CEO as TechFlow\'s single biggest commercial growth driver.',
+                    'Cut wasted paid search spend from Â£12K to Â£4K per month and reduced customer acquisition cost by 31% while growing pipeline volume by 67% YoY.',
                     'Built a 120-article SEO library, scaling organic traffic from 8,000 to 47,000 monthly sessions in 18 months.',
                 ]
             }
@@ -654,14 +672,14 @@ if __name__ == '__main__':
             'HubSpot Marketing Software Certification  -  2023',
         ],
         'technical_skills': (
-            'HubSpot  •  Salesforce  •  Google Analytics 4  •  SEMrush  •  Google Ads  '
-            '•  Meta Ads  •  LinkedIn Campaign Manager  •  Looker Studio'
+            'HubSpot  â¢  Salesforce  â¢  Google Analytics 4  â¢  SEMrush  â¢  Google Ads  '
+            'â¢  Meta Ads  â¢  LinkedIn Campaign Manager  â¢  Looker Studio'
         ),
         'changelog': [
             {'title': 'ATS title injection',
              'text': 'Your target job titles now appear directly under your name. ATS systems match on exact title strings before a human reads a word. Candidates without those strings are filtered out regardless of their experience.'},
             {'title': 'Summary rebuilt around your strongest result',
-             'text': 'The original CV opened with context. Your optimised version opens with the number that matters most - £4.2M attributed pipeline, 67% year-on-year. That is what earns the next six seconds of attention.'},
+             'text': 'The original CV opened with context. Your optimised version opens with the number that matters most - Â£4.2M attributed pipeline, 67% year-on-year. That is what earns the next six seconds of attention.'},
             {'title': 'Skills section built from scratch',
              'text': 'This section did not exist in your original CV. A keyword-dense skills block gives the ATS a clean match signal and gives every human reader an immediate picture of what you bring.'},
         ],
