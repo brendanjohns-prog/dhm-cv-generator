@@ -111,7 +111,7 @@ def build_report_html(cv_data):
                       if priority == 'high' else '')
         assess_items_html += f'''
       <article class="assess">
-        <div class="assess__rail" style="background:{rail_bg};">{label}</div>
+        <div class="assess__rail" style="background:{rail_bg};"></div>
         <div class="assess__body">
           <div class="assess__head">
             <div class="assess__index">Item {i:02d}</div>
@@ -490,14 +490,7 @@ h1.section-title {{
 .assessment {{ display: flex; flex-direction: column; gap: 6mm; }}
 .assess {{ border: 1px solid #000; display: flex; flex-direction: row; }}
 .assess__rail {{
-  width: 12mm; flex-shrink: 0;
-  color: #fff;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  display: flex; align-items: center; justify-content: center;
-  padding: 6mm 0;
-  font-size: 7.5pt; font-weight: 700;
-  letter-spacing: 0.28em; text-transform: uppercase;
+  width: 8mm; flex-shrink: 0;
 }}
 .assess__body {{ padding: 7mm 8mm; flex: 1; }}
 .assess__head {{
