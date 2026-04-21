@@ -2,7 +2,7 @@ services:
   - type: web
     name: dhm-cv-generator
     runtime: python
-    buildCommand: sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libffi-dev libjpeg-dev libopenjp2-7 fonts-liberation fontconfig && pip install -r requirements.txt
+    buildCommand: sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libffi-dev libjpeg-dev libopenjp2-7 fonts-liberation fonts-dejavu-core fontconfig && sudo fc-cache -fv && pip install -r requirements.txt
     startCommand: gunicorn api:app
     envVars:
       - key: PYTHON_VERSION
