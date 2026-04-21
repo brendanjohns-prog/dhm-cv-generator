@@ -131,14 +131,13 @@ def build_report_html(cv_data):
 <meta charset="utf-8"/>
 <title>CV Optimisation Report — {name}</title>
 <style>
-/* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* ── Fonts ── */
 
 /* ── Reset ── */
 *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 html, body {{ margin: 0; padding: 0; background: #E9E7E2; }}
 body {{
-  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-family: Liberation Sans, Arial, Helvetica, sans-serif;
   color: #000;
   font-size: 10.5pt;
   line-height: 1.55;
