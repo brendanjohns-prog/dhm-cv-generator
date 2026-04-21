@@ -6,11 +6,14 @@ Handles both structured JSON and cv_draft text formats.
 Returns a formatted .docx file.
 """
 
+import io
 import logging
 import traceback as tb
 import re
 from flask import Flask, request, send_file, jsonify
-from generate_cv import build_cv_only, build_report_only
+from generate_cv import build_cv_only
+from generate_report_html import build_report_html
+from weasyprint import HTML
 import tempfile
 import os
 
@@ -266,23 +269,24 @@ def generate():
 
 @app.route('/generate-report', methods=['POST'])
 def generate_report():
-    """Returns the internal report document (Strategic Changelog + Gap Report)."""
+    """Returns the branded PDF report (cover + welcome + approach + changelog + gap report)."""
     try:
         cv_data, err = get_cv_data_from_request()
         if err:
             return jsonify({'error': err[0]}), err[1]
 
-        with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
-            output_path = tmp.name
+        html_content = build_report_html(cv_data)
+        pdf_bytes = HTML(string=html_content).write_pdf()
+        logger.info("Report PDF generated (%d bytes)", len(pdf_bytes))
 
-        build_report_only(cv_data, output_path)
-        logger.info("Report saved: %s", output_path)
+        candidate_name = cv_data.get('name', 'Client').replace(' ', '_')
+        filename = f'DHM_CV_Report_{candidate_name}.pdf'
 
         return send_file(
-            output_path,
-            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
             as_attachment=True,
-            download_name='DHM_Strategic_Report.docx'
+            download_name=filename
         )
     except Exception as e:
         logger.error("Exception: %s\n%s", e, tb.format_exc())
