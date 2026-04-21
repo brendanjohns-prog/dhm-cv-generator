@@ -43,6 +43,37 @@ def clean_cv_data(cv_data):
     return cv_data
 
 
+def fix_candidate_voice(text):
+    """Replace third-person 'the candidate' language with second-person 'you/your'."""
+    if not isinstance(text, str):
+        return text
+
+    def _repl(replacement):
+        def _fn(m):
+            matched = m.group(0)
+            result = replacement
+            if matched[0].isupper():
+                result = result[0].upper() + result[1:]
+            return result
+        return _fn
+
+    text = re.sub(r"the candidate's", _repl("your"), text, flags=re.IGNORECASE)
+    text = re.sub(r"the candidate", _repl("you"), text, flags=re.IGNORECASE)
+    return text
+
+
+def apply_voice_fix(cv_data):
+    """Apply second-person voice correction to report-only sections."""
+    for section in ('changelog', 'gap_report'):
+        items = cv_data.get(section, [])
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict):
+                    item['title'] = fix_candidate_voice(item.get('title', ''))
+                    item['text']  = fix_candidate_voice(item.get('text', ''))
+    return cv_data
+
+
 def parse_cv_draft(cv_data):
     """
     Convert {cv_draft, strategic_changelog, gap_report} text format
@@ -203,6 +234,8 @@ def get_cv_data_from_request():
 
     # Strip em dashes from all text fields
     cv_data = clean_cv_data(cv_data)
+    # Fix AI-generated third-person voice in report sections
+    cv_data = apply_voice_fix(cv_data)
     return cv_data, None
 
 
