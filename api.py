@@ -118,14 +118,15 @@ def annotate_gap_priorities(gap_items):
 
 # Changes page 1 has the section title + lede, so it fits fewer items.
 # Continuation pages are header + items + footer, so they hold more.
-CHANGES_FIRST_PAGE = 4
+CHANGES_FIRST_PAGE = 5
 CHANGES_PER_PAGE = 6
 GAPS_PER_PAGE = 3
 
 # Soft character limits for report cards. Claude is told to stay within these,
 # but we trim server-side as a safety net so an over-long response never breaks layout.
+# Body targets: ~3 lines for changes, ~5 lines for gap cards at current font sizes.
 CHANGE_TITLE_MAX = 70
-CHANGE_BODY_MAX = 320
+CHANGE_BODY_MAX = 230
 GAP_TITLE_MAX = 70
 GAP_BODY_MAX = 480
 
