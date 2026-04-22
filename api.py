@@ -120,6 +120,9 @@ def annotate_gap_priorities(gap_items):
 # Continuation pages are header + items + footer, so they hold more.
 CHANGES_FIRST_PAGE = 5
 CHANGES_PER_PAGE = 6
+# Assessment page 1 has the section title + lede + closer line, so it fits 2.
+# Continuation pages are header + cards + footer, so they hold 3.
+GAPS_FIRST_PAGE = 2
 GAPS_PER_PAGE = 3
 
 # Soft character limits for report cards. Claude is told to stay within these,
@@ -184,7 +187,7 @@ def render_report_pdf(cv_data):
             item['text'] = _trim(item.get('text', ''), GAP_BODY_MAX)
 
     change_pages = _paginate(changelog, CHANGES_PER_PAGE, first_page=CHANGES_FIRST_PAGE)
-    gap_pages = _paginate(gap_report, GAPS_PER_PAGE)
+    gap_pages = _paginate(gap_report, GAPS_PER_PAGE, first_page=GAPS_FIRST_PAGE)
 
     # Page numbering: 1 cover, 2 welcome, 3 approach, then changes, gaps, thank-you.
     change_start = 4
