@@ -318,14 +318,12 @@ blockquote.dhm cite {
     align-items: center;
     padding-top: 5mm;
     border-top: var(--rule);
-    margin-top: 8mm;
+    margin-top: auto;
     font-size: 8pt;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--dhm-black);
     font-weight: 500;
-    break-before: avoid;
-    page-break-before: avoid;
   }
   .page__footer .page-no { color: var(--dhm-coral); font-weight: 700; }
 
@@ -349,6 +347,7 @@ blockquote.dhm cite {
   .cover__logo {
     height: 26mm;
     width: auto;
+    margin-bottom: -6mm;
   }
   .cover__meta {
     text-align: right;
@@ -706,8 +705,8 @@ blockquote.dhm cite {
   }
 
   .both-matter {
-    margin-top: 3mm;
-    padding: 3mm 0 0;
+    margin-top: 8mm;
+    padding: 5mm 0 0;
     border-top: var(--rule-thick);
     display: grid;
     grid-template-columns: 50mm 1fr;
@@ -744,11 +743,11 @@ blockquote.dhm cite {
     display: grid;
     grid-template-columns: 28mm 1fr;
     gap: 8mm;
-    padding: 7mm 0;
-    border-top: var(--rule);
+    padding: 4mm 0;
+    border-top: var(--rule-coral);
     align-items: start;
   }
-  .change:last-child { border-bottom: var(--rule); }
+  .change:last-child { border-bottom: var(--rule-coral); }
   .change__num {
     font-size: 48pt;
     font-weight: 700;
@@ -1322,8 +1321,8 @@ blockquote.dhm cite {
         <p class="both-matter__emph">
           A CV that passes ATS but reads poorly to a human does not get an
           interview. A CV that reads well but fails ATS never reaches a human
-          at all. Every decision made in your optimised CV — formatting,
-          structure, language, and framing — has been made with both stages in
+          at all. Every decision made in your optimised CV - formatting,
+          structure, language, and framing - has been made with both stages in
           mind.
         </p>
         <p class="both-matter__emph">

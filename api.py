@@ -116,19 +116,50 @@ def annotate_gap_priorities(gap_items):
     return gap_items
 
 
-CHANGES_PER_PAGE = 3
-GAPS_PER_PAGE = 2
+CHANGES_PER_PAGE = 4
+GAPS_PER_PAGE = 3
+
+# Soft character limits for report cards. Claude is told to stay within these,
+# but we trim server-side as a safety net so an over-long response never breaks layout.
+CHANGE_TITLE_MAX = 70
+CHANGE_BODY_MAX = 320
+GAP_TITLE_MAX = 70
+GAP_BODY_MAX = 360
 
 
-def _paginate(items, per_page):
-    """Chunk items into pages and tag each with its 1-based global index."""
+def _trim(text, limit):
+    text = (text or '').strip()
+    if len(text) <= limit:
+        return text
+    # Cut at last word boundary before the limit so we don't mid-word truncate.
+    cut = text[:limit].rsplit(' ', 1)[0].rstrip(',;:-')
+    return cut + '…'
+
+
+def _paginate(items, max_per_page):
+    """Chunk items evenly across the minimum number of pages.
+
+    e.g. 9 items with max=5 → [5, 4] rather than [5, 4] (trivial)
+    but 9 items with max=4 → [3, 3, 3] rather than [4, 4, 1] — avoids
+    a last page carrying a single lone card.
+    """
+    import math
+    n = len(items)
+    if n == 0:
+        return []
+    pages_needed = math.ceil(n / max_per_page)
+    base = n // pages_needed
+    extra = n % pages_needed
     pages = []
-    for start in range(0, len(items), per_page):
-        chunk = items[start:start + per_page]
+    start = 0
+    for p in range(pages_needed):
+        size = base + (1 if p < extra else 0)
+        chunk = items[start:start + size]
         for offset, item in enumerate(chunk):
             if isinstance(item, dict):
                 item['index'] = start + offset + 1
         pages.append(chunk)
+        start += size
     return pages
 
 
@@ -141,6 +172,16 @@ def render_report_pdf(cv_data):
 
     changelog = cv_data.get('changelog', []) or []
     gap_report = annotate_gap_priorities(cv_data.get('gap_report', []) or [])
+
+    # Safety-net trim so layout stays clean when Claude exceeds soft limits.
+    for item in changelog:
+        if isinstance(item, dict):
+            item['title'] = _trim(item.get('title', ''), CHANGE_TITLE_MAX)
+            item['text'] = _trim(item.get('text', ''), CHANGE_BODY_MAX)
+    for item in gap_report:
+        if isinstance(item, dict):
+            item['title'] = _trim(item.get('title', ''), GAP_TITLE_MAX)
+            item['text'] = _trim(item.get('text', ''), GAP_BODY_MAX)
 
     change_pages = _paginate(changelog, CHANGES_PER_PAGE)
     gap_pages = _paginate(gap_report, GAPS_PER_PAGE)
