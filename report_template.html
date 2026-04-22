@@ -627,6 +627,7 @@ blockquote.dhm cite {
     grid-template-columns: 10mm 1fr;
     align-items: baseline;
     gap: 3mm;
+    min-height: 18mm;
     padding-bottom: 2mm;
     border-bottom: var(--rule);
   }
@@ -798,7 +799,13 @@ blockquote.dhm cite {
     text-transform: uppercase;
   }
   .assess[data-priority="medium"] .assess__rail {
-    background: var(--dhm-black);
+    background: var(--dhm-soft-blue);
+    color: var(--dhm-black);
+  }
+  .assess[data-priority="medium"] .assess__tag {
+    background: var(--dhm-soft-blue);
+    border-color: var(--dhm-soft-blue);
+    color: var(--dhm-black);
   }
   .assess__body {
     padding: 7mm 8mm 7mm;
@@ -889,10 +896,11 @@ blockquote.dhm cite {
     color: var(--dhm-coral);
   }
   .signoff img {
-    width: 80mm;
+    width: 95mm;
     max-width: 100%;
     height: auto;
     display: block;
+    image-rendering: -webkit-optimize-contrast;
   }
   .signoff__who .name {
     font-size: 12pt;

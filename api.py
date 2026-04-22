@@ -124,7 +124,7 @@ GAPS_PER_PAGE = 3
 CHANGE_TITLE_MAX = 70
 CHANGE_BODY_MAX = 320
 GAP_TITLE_MAX = 70
-GAP_BODY_MAX = 360
+GAP_BODY_MAX = 480
 
 
 def _trim(text, limit):
@@ -136,30 +136,15 @@ def _trim(text, limit):
     return cut + '…'
 
 
-def _paginate(items, max_per_page):
-    """Chunk items evenly across the minimum number of pages.
-
-    e.g. 9 items with max=5 → [5, 4] rather than [5, 4] (trivial)
-    but 9 items with max=4 → [3, 3, 3] rather than [4, 4, 1] — avoids
-    a last page carrying a single lone card.
-    """
-    import math
-    n = len(items)
-    if n == 0:
-        return []
-    pages_needed = math.ceil(n / max_per_page)
-    base = n // pages_needed
-    extra = n % pages_needed
+def _paginate(items, per_page):
+    """Fixed-size chunk: fill each page up to per_page, last page gets remainder."""
     pages = []
-    start = 0
-    for p in range(pages_needed):
-        size = base + (1 if p < extra else 0)
-        chunk = items[start:start + size]
+    for start in range(0, len(items), per_page):
+        chunk = items[start:start + per_page]
         for offset, item in enumerate(chunk):
             if isinstance(item, dict):
                 item['index'] = start + offset + 1
         pages.append(chunk)
-        start += size
     return pages
 
 
