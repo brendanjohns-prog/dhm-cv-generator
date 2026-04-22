@@ -116,6 +116,22 @@ def annotate_gap_priorities(gap_items):
     return gap_items
 
 
+CHANGES_PER_PAGE = 3
+GAPS_PER_PAGE = 2
+
+
+def _paginate(items, per_page):
+    """Chunk items into pages and tag each with its 1-based global index."""
+    pages = []
+    for start in range(0, len(items), per_page):
+        chunk = items[start:start + per_page]
+        for offset, item in enumerate(chunk):
+            if isinstance(item, dict):
+                item['index'] = start + offset + 1
+        pages.append(chunk)
+    return pages
+
+
 def render_report_pdf(cv_data):
     """Render the HTML report with Jinja2, convert to PDF via PDFShift, return bytes."""
     if not PDFSHIFT_API_KEY:
@@ -123,12 +139,26 @@ def render_report_pdf(cv_data):
 
     template = _jinja_env.get_template('report_template.html')
 
+    changelog = cv_data.get('changelog', []) or []
+    gap_report = annotate_gap_priorities(cv_data.get('gap_report', []) or [])
+
+    change_pages = _paginate(changelog, CHANGES_PER_PAGE)
+    gap_pages = _paginate(gap_report, GAPS_PER_PAGE)
+
+    # Page numbering: 1 cover, 2 welcome, 3 approach, then changes, gaps, thank-you.
+    change_start = 4
+    gap_start = change_start + len(change_pages)
+    thanks_page = gap_start + len(gap_pages)
+
     context = {
         'name': cv_data.get('name', 'Client'),
         'tagline': cv_data.get('tagline', ''),
         'date_str': datetime.now().strftime('%B %Y'),
-        'changelog': cv_data.get('changelog', []) or [],
-        'gap_report': annotate_gap_priorities(cv_data.get('gap_report', []) or []),
+        'change_pages': change_pages,
+        'gap_pages': gap_pages,
+        'change_start_page': change_start,
+        'gap_start_page': gap_start,
+        'thanks_page': thanks_page,
     }
 
     html = template.render(**context)

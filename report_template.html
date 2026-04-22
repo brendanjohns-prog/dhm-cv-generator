@@ -260,10 +260,10 @@ blockquote.dhm cite {
     --page-w: 210mm;
     --page-h: 297mm;
     --page-pad-x: 22mm;
-    --page-pad-y: 22mm;
-    --rule: 1px solid var(--dhm-black);
-    --rule-thick: 2px solid var(--dhm-black);
-    --rule-coral: 1px solid var(--dhm-coral);
+    --page-pad-y: 12mm;
+    --rule: 0.5px solid var(--dhm-black);
+    --rule-thick: 1px solid var(--dhm-black);
+    --rule-coral: 0.5px solid var(--dhm-coral);
   }
 
   html, body { margin: 0; padding: 0; background: #E9E7E2; }
@@ -301,9 +301,9 @@ blockquote.dhm cite {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding-bottom: 6mm;
+    padding-bottom: 4mm;
     border-bottom: var(--rule);
-    margin-bottom: 10mm;
+    margin-bottom: 7mm;
     font-size: 8.5pt;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -316,14 +316,16 @@ blockquote.dhm cite {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 6mm;
+    padding-top: 5mm;
     border-top: var(--rule);
-    margin-top: auto;
+    margin-top: 8mm;
     font-size: 8pt;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--dhm-black);
     font-weight: 500;
+    break-before: avoid;
+    page-break-before: avoid;
   }
   .page__footer .page-no { color: var(--dhm-coral); font-weight: 700; }
 
@@ -340,7 +342,7 @@ blockquote.dhm cite {
   .cover__top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: flex-end;
     padding-bottom: 6mm;
     border-bottom: var(--rule);
   }
@@ -475,23 +477,23 @@ blockquote.dhm cite {
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    margin-bottom: 4mm;
+    margin-bottom: 2mm;
   }
   h1.section-title {
-    font-size: 30pt;
+    font-size: 28pt;
     font-weight: 700;
     letter-spacing: -0.025em;
     line-height: 1.02;
-    margin: 0 0 4mm;
+    margin: 0 0 3mm;
     text-wrap: balance;
   }
   .section-lede {
-    font-size: 13pt;
+    font-size: 12pt;
     font-weight: 400;
     line-height: 1.4;
     color: var(--dhm-black);
     max-width: 150mm;
-    margin: 0 0 10mm;
+    margin: 0 0 6mm;
     letter-spacing: -0.005em;
   }
   .section-lede em {
@@ -594,9 +596,10 @@ blockquote.dhm cite {
   .welcome__prose .big {
     font-size: 14pt;
     line-height: 1.4;
-    font-weight: 500;
+    font-weight: 700;
     letter-spacing: -0.005em;
     margin-bottom: 5mm;
+    color: var(--dhm-coral);
   }
 
   .welcome__toc {
@@ -626,7 +629,7 @@ blockquote.dhm cite {
     align-items: baseline;
     gap: 3mm;
     padding-bottom: 2mm;
-    border-bottom: 1px solid #000;
+    border-bottom: var(--rule);
   }
   .welcome__toc-list .n {
     font-size: 9pt;
@@ -649,23 +652,23 @@ blockquote.dhm cite {
   .stages {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8mm;
+    gap: 6mm;
     margin-top: 2mm;
   }
   .stage {
     border: var(--rule);
-    padding: 8mm 8mm 9mm;
+    padding: 5mm 5mm 6mm;
     display: flex;
     flex-direction: column;
     position: relative;
   }
   .stage__num {
-    font-size: 64pt;
+    font-size: 48pt;
     font-weight: 700;
     letter-spacing: -0.05em;
     line-height: 0.85;
     color: var(--dhm-coral);
-    margin: 0 0 4mm;
+    margin: 0 0 3mm;
     font-variant-numeric: tabular-nums;
   }
   .stage__label {
@@ -677,18 +680,18 @@ blockquote.dhm cite {
     margin-bottom: 2mm;
   }
   .stage__name {
-    font-size: 18pt;
+    font-size: 16pt;
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.05;
-    margin: 0 0 5mm;
-    padding-bottom: 4mm;
+    margin: 0 0 4mm;
+    padding-bottom: 3mm;
     border-bottom: var(--rule);
   }
   .stage p {
-    font-size: 10pt;
-    line-height: 1.55;
-    margin: 0 0 3mm;
+    font-size: 9pt;
+    line-height: 1.35;
+    margin: 0 0 1.5mm;
   }
   .stage .pullout {
     margin-top: auto;
@@ -703,24 +706,25 @@ blockquote.dhm cite {
   }
 
   .both-matter {
-    margin-top: 10mm;
-    padding: 7mm 0 0;
+    margin-top: 3mm;
+    padding: 3mm 0 0;
     border-top: var(--rule-thick);
     display: grid;
     grid-template-columns: 50mm 1fr;
-    gap: 8mm;
+    gap: 5mm;
+    break-inside: avoid;
   }
   .both-matter h2 {
-    font-size: 13pt;
+    font-size: 12pt;
     letter-spacing: -0.005em;
     margin: 0;
     line-height: 1.2;
   }
   .both-matter h2 .coral { color: var(--dhm-coral); }
   .both-matter p {
-    font-size: 10.5pt;
-    line-height: 1.6;
-    margin: 0 0 3mm;
+    font-size: 9.5pt;
+    line-height: 1.45;
+    margin: 0 0 2mm;
   }
   .both-matter__emph {
     color: var(--dhm-coral);
@@ -733,6 +737,7 @@ blockquote.dhm cite {
   .changes {
     display: grid;
     grid-template-columns: 1fr;
+    break-inside: avoid;
     gap: 0;
   }
   .change {
@@ -858,24 +863,24 @@ blockquote.dhm cite {
     gap: 0;
   }
   .closer__lede {
-    font-size: 16pt;
+    font-size: 14pt;
     line-height: 1.35;
     font-weight: 500;
     letter-spacing: -0.01em;
     max-width: 155mm;
-    margin: 0 0 8mm;
+    margin: 0 0 5mm;
   }
   .closer__lede .coral { color: var(--dhm-coral); }
 
   .signoff {
-    padding: 9mm 0 10mm;
+    padding: 6mm 0 6mm;
     border-top: var(--rule);
     border-bottom: var(--rule);
-    margin: 4mm 0 12mm;
+    margin: 3mm 0 7mm;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 5mm;
+    gap: 3mm;
   }
   .signoff__kicker {
     font-size: 9pt;
@@ -885,7 +890,7 @@ blockquote.dhm cite {
     color: var(--dhm-coral);
   }
   .signoff img {
-    width: 110mm;
+    width: 80mm;
     max-width: 100%;
     height: auto;
     display: block;
@@ -927,11 +932,11 @@ blockquote.dhm cite {
     margin-bottom: 4mm;
   }
   .next__title {
-    font-size: 22pt;
+    font-size: 20pt;
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.1;
-    margin: 0 0 6mm;
+    margin: 0 0 4mm;
     max-width: 150mm;
   }
   .next__title .coral { color: var(--dhm-coral); }
@@ -958,8 +963,8 @@ blockquote.dhm cite {
   }
 
   .closer__cta {
-    margin-top: 8mm;
-    padding: 8mm;
+    margin-top: 5mm;
+    padding: 6mm;
     background: var(--dhm-black);
     color: var(--dhm-white);
     display: flex;
@@ -998,11 +1003,9 @@ blockquote.dhm cite {
     font-weight: 400;
   }
   .page__footer .logo-text {
-    font-family: var(--font-serif);
-    text-transform: none;
-    letter-spacing: -0.005em;
-    font-weight: 400;
-    font-size: 10pt;
+    /* inherit uppercase/sans from .page__footer so footer reads
+       "DEAR HIRING MANAGER," matching the cover page. */
+    font-weight: 700;
   }
 
   /* ============================================================
@@ -1339,25 +1342,27 @@ blockquote.dhm cite {
   </section>
 
   <!-- ============================================================
-       PAGE 4 — WHAT I CHANGED
+       PAGES 4+ — WHAT I CHANGED (chunked, one page per batch)
        ============================================================ -->
-  <section class="page" data-screen-label="04 What I changed">
+  {% for page_items in change_pages %}
+  <section class="page" data-screen-label="What I changed">
     <div class="page__header">
       <span class="lhs">02 &nbsp;·&nbsp; What I changed</span>
       <span class="rhs">{{ name }}</span>
     </div>
 
+    {% if loop.first %}
     <div class="section-num">Section 02</div>
     <h1 class="section-title">What I changed<span class="comma-wink" style="font-size: 30pt;">,</span><br/>and why.</h1>
     <p class="section-lede">
-      Every change was <em>deliberate</em>. Here is the thinking behind each one
-      — the three edits that do the heaviest lifting in your new CV.
+      Every change was <em>deliberate</em>. Here is the thinking behind each one.
     </p>
+    {% endif %}
 
     <div class="changes">
-      {% for item in changelog %}
+      {% for item in page_items %}
       <article class="change">
-        <div class="change__num">{{ "%02d"|format(loop.index) }}</div>
+        <div class="change__num">{{ "%02d"|format(item.index) }}</div>
         <div class="change__body">
           <h3>{{ item.title }}</h3>
           <p>{{ item.text }}</p>
@@ -1369,19 +1374,22 @@ blockquote.dhm cite {
     <div class="page__footer">
       <span class="logo-text">Dear Hiring Manager<span class="comma-wink">,</span></span>
       <span>Confidential — For {{ name }}</span>
-      <span>Page <span class="page-no">04</span></span>
+      <span>Page <span class="page-no">{{ "%02d"|format(change_start_page + loop.index0) }}</span></span>
     </div>
   </section>
+  {% endfor %}
 
   <!-- ============================================================
-       PAGE 5 — MY HONEST ASSESSMENT
+       PAGES — MY HONEST ASSESSMENT (chunked, 2 per page)
        ============================================================ -->
-  <section class="page" data-screen-label="05 Honest assessment">
+  {% for page_items in gap_pages %}
+  <section class="page" data-screen-label="Honest assessment">
     <div class="page__header">
       <span class="lhs">03 &nbsp;·&nbsp; Honest assessment</span>
       <span class="rhs">{{ name }}</span>
     </div>
 
+    {% if loop.first %}
     <div class="section-num">Section 03</div>
     <h1 class="section-title">My honest<br/>assessment<span class="comma-wink" style="font-size: 30pt;">,</span></h1>
     <p class="section-lede">
@@ -1389,14 +1397,15 @@ blockquote.dhm cite {
       into your search — <em>ordered by the impact they will have on your
       interview rate.</em>
     </p>
+    {% endif %}
 
     <div class="assessment">
-      {% for item in gap_report %}
+      {% for item in page_items %}
       <article class="assess" data-priority="{{ item.priority }}">
         <div class="assess__rail">{{ item.priority_label }}</div>
         <div class="assess__body">
           <div class="assess__head">
-            <div class="assess__index">Item {{ "%02d"|format(loop.index) }}</div>
+            <div class="assess__index">Item {{ "%02d"|format(item.index) }}</div>
             <div class="assess__tag">{{ item.priority_label }}</div>
           </div>
           <h3 class="assess__title">{{ item.title }}</h3>
@@ -1406,19 +1415,22 @@ blockquote.dhm cite {
       {% endfor %}
     </div>
 
+    {% if loop.last %}
     <p class="assess-closer">
       Addressing <span class="coral">even one or two</span> of these points
       before you start applying will put you meaningfully ahead. The changes
       are straightforward. The difference they make to your results will not
       be.
     </p>
+    {% endif %}
 
     <div class="page__footer">
       <span class="logo-text">Dear Hiring Manager<span class="comma-wink">,</span></span>
       <span>Confidential — For {{ name }}</span>
-      <span>Page <span class="page-no">05</span></span>
+      <span>Page <span class="page-no">{{ "%02d"|format(gap_start_page + loop.index0) }}</span></span>
     </div>
   </section>
+  {% endfor %}
 
   <!-- ============================================================
        PAGE 6 — THANK YOU / WHAT'S NEXT
@@ -1483,7 +1495,7 @@ blockquote.dhm cite {
     <div class="page__footer">
       <span class="logo-text">Dear Hiring Manager<span class="comma-wink">,</span></span>
       <span>Confidential — For {{ name }}</span>
-      <span>Page <span class="page-no">06</span></span>
+      <span>Page <span class="page-no">{{ "%02d"|format(thanks_page) }}</span></span>
     </div>
   </section>
 
