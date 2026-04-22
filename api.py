@@ -13,7 +13,7 @@ import re
 from flask import Flask, request, send_file, jsonify
 from generate_cv import build_cv_only
 from generate_report_html import build_report_html
-from weasyprint import HTML
+from xhtml2pdf import pisa
 import tempfile
 import os
 
@@ -276,7 +276,11 @@ def generate_report():
             return jsonify({'error': err[0]}), err[1]
 
         html_content = build_report_html(cv_data)
-        pdf_bytes = HTML(string=html_content).write_pdf()
+        pdf_buffer = io.BytesIO()
+        pisa_status = pisa.CreatePDF(html_content, dest=pdf_buffer)
+        if pisa_status.err:
+            raise Exception(f'PDF generation failed with {pisa_status.err} errors')
+        pdf_bytes = pdf_buffer.getvalue()
         logger.info("Report PDF generated (%d bytes)", len(pdf_bytes))
 
         candidate_name = cv_data.get('name', 'Client').replace(' ', '_')
