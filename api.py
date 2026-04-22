@@ -116,7 +116,10 @@ def annotate_gap_priorities(gap_items):
     return gap_items
 
 
-CHANGES_PER_PAGE = 4
+# Changes page 1 has the section title + lede, so it fits fewer items.
+# Continuation pages are header + items + footer, so they hold more.
+CHANGES_FIRST_PAGE = 4
+CHANGES_PER_PAGE = 6
 GAPS_PER_PAGE = 3
 
 # Soft character limits for report cards. Claude is told to stay within these,
@@ -136,15 +139,26 @@ def _trim(text, limit):
     return cut + '…'
 
 
-def _paginate(items, per_page):
-    """Fixed-size chunk: fill each page up to per_page, last page gets remainder."""
+def _paginate(items, per_page, first_page=None):
+    """Fixed-size chunk. Optional first_page lets the first page carry a
+    different count (e.g. fewer items to make room for a section title)."""
     pages = []
-    for start in range(0, len(items), per_page):
+    n = len(items)
+    start = 0
+    if first_page is not None and n > 0:
+        chunk = items[start:first_page]
+        for offset, item in enumerate(chunk):
+            if isinstance(item, dict):
+                item['index'] = offset + 1
+        pages.append(chunk)
+        start = first_page
+    while start < n:
         chunk = items[start:start + per_page]
         for offset, item in enumerate(chunk):
             if isinstance(item, dict):
                 item['index'] = start + offset + 1
         pages.append(chunk)
+        start += per_page
     return pages
 
 
@@ -168,7 +182,7 @@ def render_report_pdf(cv_data):
             item['title'] = _trim(item.get('title', ''), GAP_TITLE_MAX)
             item['text'] = _trim(item.get('text', ''), GAP_BODY_MAX)
 
-    change_pages = _paginate(changelog, CHANGES_PER_PAGE)
+    change_pages = _paginate(changelog, CHANGES_PER_PAGE, first_page=CHANGES_FIRST_PAGE)
     gap_pages = _paginate(gap_report, GAPS_PER_PAGE)
 
     # Page numbering: 1 cover, 2 welcome, 3 approach, then changes, gaps, thank-you.
