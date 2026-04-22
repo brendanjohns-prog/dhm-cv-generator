@@ -10,12 +10,24 @@ import io
 import logging
 import traceback as tb
 import re
-from flask import Flask, request, send_file, jsonify
-from generate_cv import build_cv_only
-from generate_report_html import build_report_html
-from xhtml2pdf import pisa
-import tempfile
 import os
+import tempfile
+from datetime import datetime
+
+import requests
+from flask import Flask, request, send_file, jsonify
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from generate_cv import build_cv_only
+
+PDFSHIFT_API_KEY = os.environ.get('PDFSHIFT_API_KEY', '')
+PDFSHIFT_URL = 'https://api.pdfshift.io/v3/convert/pdf'
+TEMPLATE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+_jinja_env = Environment(
+    loader=FileSystemLoader(TEMPLATE_DIR),
+    autoescape=select_autoescape(['html'])
+)
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -75,6 +87,69 @@ def apply_voice_fix(cv_data):
                     item['title'] = fix_candidate_voice(item.get('title', ''))
                     item['text']  = fix_candidate_voice(item.get('text', ''))
     return cv_data
+
+
+def annotate_gap_priorities(gap_items):
+    """Detect [HIGH/MEDIUM/LOW PRIORITY] tags on each gap item and strip them from the title."""
+    for item in gap_items:
+        if not isinstance(item, dict):
+            continue
+        title = item.get('title', '') or ''
+        body = item.get('text', '') or ''
+
+        # Search title first, then body, for a priority tag.
+        search_blob = title + ' ' + body
+        if re.search(r'\bHIGH\b', search_blob, re.I):
+            item['priority'] = 'high'
+            item['priority_label'] = 'High priority'
+        elif re.search(r'\bLOW\b', search_blob, re.I) and 'PRIORITY' in search_blob.upper():
+            item['priority'] = 'low'
+            item['priority_label'] = 'Low priority'
+        else:
+            item['priority'] = 'medium'
+            item['priority_label'] = 'Medium priority'
+
+        # Strip [PRIORITY] tags wherever they appear.
+        tag_pattern = re.compile(r'\s*[\[\(]\s*(HIGH|MEDIUM|LOW)\s*PRIORITY\s*[\]\)]', re.I)
+        item['title'] = tag_pattern.sub('', title).strip()
+        item['text'] = tag_pattern.sub('', body).strip()
+    return gap_items
+
+
+def render_report_pdf(cv_data):
+    """Render the HTML report with Jinja2, convert to PDF via PDFShift, return bytes."""
+    if not PDFSHIFT_API_KEY:
+        raise RuntimeError('PDFSHIFT_API_KEY environment variable is not set')
+
+    template = _jinja_env.get_template('report_template.html')
+
+    context = {
+        'name': cv_data.get('name', 'Client'),
+        'tagline': cv_data.get('tagline', ''),
+        'date_str': datetime.now().strftime('%B %Y'),
+        'changelog': cv_data.get('changelog', []) or [],
+        'gap_report': annotate_gap_priorities(cv_data.get('gap_report', []) or []),
+    }
+
+    html = template.render(**context)
+
+    response = requests.post(
+        PDFSHIFT_URL,
+        auth=('api', PDFSHIFT_API_KEY),
+        json={
+            'source': html,
+            'format': 'A4',
+            'margin': '0',
+            'use_print': True,
+            'sandbox': False,
+        },
+        timeout=120,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(f'PDFShift error {response.status_code}: {response.text[:500]}')
+
+    return response.content
 
 
 def parse_cv_draft(cv_data):
@@ -288,12 +363,7 @@ def generate_report():
         if err:
             return jsonify({'error': err[0]}), err[1]
 
-        html_content = build_report_html(cv_data)
-        pdf_buffer = io.BytesIO()
-        pisa_status = pisa.CreatePDF(html_content, dest=pdf_buffer)
-        if pisa_status.err:
-            raise Exception(f'PDF generation failed with {pisa_status.err} errors')
-        pdf_bytes = pdf_buffer.getvalue()
+        pdf_bytes = render_report_pdf(cv_data)
         logger.info("Report PDF generated (%d bytes)", len(pdf_bytes))
 
         candidate_name = cv_data.get('name', 'Client').replace(' ', '_')
