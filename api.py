@@ -203,12 +203,25 @@ def parse_cv_draft(cv_data):
         items = []
         parts = re.split(r'\n(?=\d+[\.\)]\s|\-\s|\•\s)', text)
         for part in parts:
-            part = part.strip().lstrip('0123456789.)- •')
+            part = part.strip().lstrip('0123456789.)- •').strip()
             if not part:
                 continue
-            sub = part.split('\n', 1)
-            title = sub[0].strip()
-            body = sub[1].strip() if len(sub) > 1 else ''
+
+            # Preferred: Claude returns "**Title** - body" on one line.
+            bold_match = re.match(r'\*\*(.+?)\*\*\s*[-–—:]*\s*(.*)', part, re.DOTALL)
+            if bold_match:
+                title = bold_match.group(1).strip()
+                body = bold_match.group(2).strip()
+            else:
+                # Fallback: title on first line, body on the rest.
+                sub = part.split('\n', 1)
+                title = sub[0].strip()
+                body = sub[1].strip() if len(sub) > 1 else ''
+
+            # Strip any stray markdown bold markers that slipped through.
+            title = re.sub(r'\*\*(.+?)\*\*', r'\1', title)
+            body = re.sub(r'\*\*(.+?)\*\*', r'\1', body)
+
             items.append({'title': title, 'text': body})
         if not items and text.strip():
             items.append({'title': 'Notes', 'text': text.strip()})
