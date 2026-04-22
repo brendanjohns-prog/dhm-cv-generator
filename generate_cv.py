@@ -4,10 +4,10 @@ DHM CV Optimisation Pipeline - Document Generator
 Produces consistently formatted .docx files matching the DHM brand standard.
 
 Brand colours:
-  Deep Coral   #DC6A63  (220, 106, 99)  â primary accent
+  Deep Coral   #DC6A63  (220, 106, 99)  — primary accent
   Black        #000000  (0, 0, 0)
   White        #FFFFFF  (255, 255, 255)
-  Soft Blue    #B8C0CC  (184, 192, 204)  â secondary accent
+  Soft Blue    #B8C0CC  (184, 192, 204)  — secondary accent
   Dark Grey    #444444  (68, 68, 68)
 """
 import os
@@ -46,6 +46,7 @@ def _first_name(full_name):
 
 
 def add_horizontal_rule(paragraph, color='DC6A63'):
+    """Bottom border — used in report headings."""
     pPr = paragraph._p.get_or_add_pPr()
     pBdr = OxmlElement('w:pBdr')
     bottom = OxmlElement('w:bottom')
@@ -55,6 +56,27 @@ def add_horizontal_rule(paragraph, color='DC6A63'):
     bottom.set(qn('w:color'), color)
     pBdr.append(bottom)
     pPr.append(pBdr)
+
+
+def add_top_rule(paragraph, color='DC6A63', sz='4', space='6'):
+    """Top border — used in CV section headings for premium editorial look."""
+    pPr = paragraph._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    top = OxmlElement('w:top')
+    top.set(qn('w:val'), 'single')
+    top.set(qn('w:sz'), sz)       # 4 = 0.5pt hairline
+    top.set(qn('w:space'), space)
+    top.set(qn('w:color'), color)
+    pBdr.append(top)
+    pPr.append(pBdr)
+
+
+def add_run_letter_spacing(run, spacing_twips=30):
+    """Add character spacing to a run (1 twip = 1/20 pt; 30 ≈ 1.5pt tracking)."""
+    rPr = run._r.get_or_add_rPr()
+    spacing = OxmlElement('w:spacing')
+    spacing.set(qn('w:val'), str(spacing_twips))
+    rPr.append(spacing)
 
 
 def set_run_font(run, name='Calibri', size=11, bold=False, italic=False, color=None):
@@ -129,16 +151,18 @@ def remove_table_borders(table):
 
 
 # ---------------------------------------------------------------------------
-# CV SECTION HELPERS  (navy palette â CV styling, not DHM brand)
+# CV SECTION HELPERS  (navy palette — CV styling, not DHM brand)
 # ---------------------------------------------------------------------------
 
 def add_cv_section_heading(doc, text):
+    """CV section heading: black, 12pt, coral top-rule, letter-spaced ALL CAPS."""
     p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(12)
-    p.paragraph_format.space_after  = Pt(2)
+    p.paragraph_format.space_before = Pt(14)
+    p.paragraph_format.space_after  = Pt(3)
     run = p.add_run(text)
-    set_run_font(run, size=11, bold=True, color=(31, 56, 100))
-    add_horizontal_rule(p, color='2E75B6')
+    set_run_font(run, size=12, bold=True, color=BLACK)
+    add_run_letter_spacing(run, spacing_twips=30)   # ~1.5pt tracking on ALL CAPS
+    add_top_rule(p, color='DC6A63', sz='4', space='6')
     return p
 
 
@@ -211,10 +235,10 @@ def _render_parsed_text(paragraph, text, base_color=None, base_size=10.5):
     for i, part in enumerate(parts):
         if not part:
             continue
-        if i % 2 == 1:          # inside asterisks â coral bold
+        if i % 2 == 1:          # inside asterisks → coral bold
             r = paragraph.add_run(part)
             set_run_font(r, size=base_size, bold=True, color=CORAL)
-        else:                     # outside asterisks â base colour, not bold
+        else:                    # outside asterisks → base colour, not bold
             r = paragraph.add_run(part)
             set_run_font(r, size=base_size, color=base_color)
 
@@ -226,7 +250,7 @@ def add_numbered_item(doc, number, bold_title, text):
     # Coral bold number prefix
     r1 = p.add_run(f'{number}. ')
     set_run_font(r1, size=10.5, bold=True, color=CORAL)
-    # Merge title + text into one string â no forced bold, asterisks become coral
+    # Merge title + text into one string — no forced bold, asterisks become coral
     content = str(bold_title) if bold_title else ''
     if text:
         content += (' - ' if content else '') + str(text)
@@ -260,7 +284,7 @@ def _render_summary(doc, summary_text):
 
     if len(parts) == 1:
         seeking_match = re.search(
-            r'(?<=[.!_])\s+((?Now\s+)?(?:[Ss]eeking|[Ll]ooking\s+for|[Tt]argeting\s+a|[Oo]pen\s+to)\b)',
+            r'(?<=[.!?])\s+((?:Now\s+)?(?:[Ss]eeking|[Ll]ooking\s+for|[Tt]argeting\s+a|[Oo]pen\s+to)\b)',
             summary_text
         )
         if seeking_match:
@@ -284,28 +308,28 @@ def _render_summary(doc, summary_text):
 # ---------------------------------------------------------------------------
 
 def _add_cv_content(doc, cv_data):
-    """Clean client-facing CV â name block through Technical Skills."""
+    """Clean client-facing CV — name block through Technical Skills."""
 
-    # Name
+    # Name — 26pt, bold, black, centered
     p_name = doc.add_paragraph()
     p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_name = p_name.add_run(cv_data['name'])
-    set_run_font(r_name, size=20, bold=True, color=BLACK)
+    set_run_font(r_name, size=26, bold=True, color=BLACK)
     p_name.paragraph_format.space_before = Pt(10)
-    p_name.paragraph_format.space_after  = Pt(2)
+    p_name.paragraph_format.space_after  = Pt(3)
 
-    # Tagline
+    # Tagline — charcoal (not blue), centered
     p_titles = doc.add_paragraph()
     p_titles.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_titles = p_titles.add_run(cv_data['tagline'])
-    set_run_font(r_titles, size=11, color=(46, 117, 182))
+    set_run_font(r_titles, size=11, color=(51, 51, 51))
     p_titles.paragraph_format.space_after = Pt(2)
 
-    # Contact
+    # Contact — mid-grey, centered
     p_contact = doc.add_paragraph()
     p_contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_contact = p_contact.add_run(cv_data['contact'])
-    set_run_font(r_contact, size=10, color=(85, 85, 85))
+    set_run_font(r_contact, size=10, color=(100, 100, 100))
     p_contact.paragraph_format.space_after = Pt(10)
 
     # Professional Summary
@@ -314,7 +338,7 @@ def _add_cv_content(doc, cv_data):
 
     is_tech_role = cv_data.get('tech_role', False)
 
-    # Technical Skills â top for tech roles
+    # Technical Skills — top for tech roles
     if is_tech_role and cv_data.get('technical_skills'):
         add_cv_section_heading(doc, 'TECHNICAL SKILLS')
         p_tech = doc.add_paragraph()
@@ -327,7 +351,7 @@ def _add_cv_content(doc, cv_data):
     p_comp.paragraph_format.space_before = Pt(4)
     p_comp.paragraph_format.space_after  = Pt(6)
     r_comp = p_comp.add_run(cv_data['competencies'])
-    set_run_font(r_comp, size=10.5, color=(46, 117, 182))
+    set_run_font(r_comp, size=10.5, color=CORAL)
 
     # Work Experience
     add_cv_section_heading(doc, 'WORK EXPERIENCE')
@@ -367,7 +391,7 @@ def _add_cv_content(doc, cv_data):
         for item in cv_data['education']:
             add_bullet(doc, item)
 
-    # Technical Skills â bottom for non-tech roles
+    # Technical Skills — bottom for non-tech roles
     if not is_tech_role and cv_data.get('technical_skills'):
         add_cv_section_heading(doc, 'TECHNICAL SKILLS')
         p_tech = doc.add_paragraph()
@@ -380,7 +404,7 @@ def _add_cv_content(doc, cv_data):
 # ---------------------------------------------------------------------------
 
 def _add_report_content(doc, cv_data):
-    """Full DHM-branded report â foreword through sign-off."""
+    """Full DHM-branded report — foreword through sign-off."""
 
     first = _first_name(cv_data['name'])
     client_name = cv_data['name'].title()
@@ -555,7 +579,7 @@ def _add_report_content(doc, cv_data):
          'in the right way. More signal. Less noise.'),
         ('Interview Preparation and Mock Interviews',
          'when the CV gets you through the door, you need to be ready for what comes next. '
-         'we work with you to prepare for interviews, sharpen your answers, tand walk in '
+         'We work with you to prepare for interviews, sharpen your answers, and walk in '
          'with confidence.'),
     ]
     for label, text in next_steps:
@@ -585,7 +609,7 @@ def _add_report_content(doc, cv_data):
 # ---------------------------------------------------------------------------
 
 def build_cv_only(cv_data, output_path):
-    """Client-facing CV â clean, no DHM branding."""
+    """Client-facing CV — clean, no DHM branding."""
     doc = Document()
     _setup_page(doc)
     _add_cv_content(doc, cv_data)
@@ -594,7 +618,7 @@ def build_cv_only(cv_data, output_path):
 
 
 def build_report_only(cv_data, output_path):
-    """DHM-branded strategic report â foreword through sign-off."""
+    """DHM-branded strategic report — foreword through sign-off."""
     doc = Document()
     _setup_page(doc)
     _add_report_content(doc, cv_data)
@@ -603,7 +627,7 @@ def build_report_only(cv_data, output_path):
 
 
 def build_cv_doc(cv_data, output_path):
-    """Combined document â CV + report (legacy / testing use)."""
+    """Combined document — CV + report (legacy / testing use)."""
     doc = Document()
     _setup_page(doc)
 
@@ -635,10 +659,10 @@ if __name__ == '__main__':
         'tech_role': False,
         'name': 'JAMES CARTER',
         'tagline': 'Senior Marketing Manager | Head of Marketing | Demand Generation Lead',
-        'contact': '07XXX XXXXXX  â¢  james.carter@email.com  â¢  London, UK',
+        'contact': '07XXX XXXXXX  •  james.carter@email.com  •  London, UK',
         'summary': (
             'A demand generation leader who built TechFlow\'s entire marketing function from '
-            'scratch, generating Â£4.2M in attributed pipeline revenue - 67% year-on-year growth - '
+            'scratch, generating £4.2M in attributed pipeline revenue - 67% year-on-year growth - '
             'and cutting customer acquisition cost by 31% in the process. Known for building '
             'data-driven marketing engines that align tightly with sales, with a consistent '
             'focus on pipeline impact over brand activity.\n\n'
@@ -646,18 +670,18 @@ if __name__ == '__main__':
             'ownership of pipeline strategy, team, and budget.'
         ),
         'competencies': (
-            'Demand Generation Strategy  â¢  B2B SaaS Marketing  â¢  Account-Based Marketing (ABM)  '
-            'â¢  Paid Search and Paid Media  â¢  SEO and Content Strategy  â¢  Budget Ownership and '
-            'ROI Reporting  â¢  CRM and Marketing Automation (HubSpot, Salesforce)  â¢  Marketing '
-            'Attribution  â¢  Team Leadership  â¢  Stakeholder Management'
+            'Demand Generation Strategy  •  B2B SaaS Marketing  •  Account-Based Marketing (ABM)  '
+            '•  Paid Search and Paid Media  •  SEO and Content Strategy  •  Budget Ownership and '
+            'ROI Reporting  •  CRM and Marketing Automation (HubSpot, Salesforce)  •  Marketing '
+            'Attribution  •  Team Leadership  •  Stakeholder Management'
         ),
         'employment': [
             {
-                'header': 'MARKETING MANAGER  |  TECHELOW LTD  |  Feb 2021 - Present',
+                'header': 'MARKETING MANAGER  |  TECHFLOW LTD  |  Feb 2021 - Present',
                 'context': 'Series A B2B SaaS platform. First marketing hire; built the function from scratch.',
                 'bullets': [
-                    'Generated Â£4.2M in attributed pipeline revenue in FY2024 - 67% YoY - recognised by the CEO as TechFlow\'s single biggest commercial growth driver.',
-                    'Cut wasted paid search spend from Â£12K to Â£4K per month and reduced customer acquisition cost by 31% while growing pipeline volume by 67% YoY.',
+                    'Generated £4.2M in attributed pipeline revenue in FY2024 - 67% YoY - recognised by the CEO as TechFlow\'s single biggest commercial growth driver.',
+                    'Cut wasted paid search spend from £12K to £4K per month and reduced customer acquisition cost by 31% while growing pipeline volume by 67% YoY.',
                     'Built a 120-article SEO library, scaling organic traffic from 8,000 to 47,000 monthly sessions in 18 months.',
                 ]
             }
@@ -672,14 +696,14 @@ if __name__ == '__main__':
             'HubSpot Marketing Software Certification  -  2023',
         ],
         'technical_skills': (
-            'HubSpot  â¢  Salesforce  â¢  Google Analytics 4  â¢  SEMrush  â¢  Google Ads  '
-            'â¢  Meta Ads  â¢  LinkedIn Campaign Manager  â¢  Looker Studio'
+            'HubSpot  •  Salesforce  •  Google Analytics 4  •  SEMrush  •  Google Ads  '
+            '•  Meta Ads  •  LinkedIn Campaign Manager  •  Looker Studio'
         ),
         'changelog': [
             {'title': 'ATS title injection',
              'text': 'Your target job titles now appear directly under your name. ATS systems match on exact title strings before a human reads a word. Candidates without those strings are filtered out regardless of their experience.'},
             {'title': 'Summary rebuilt around your strongest result',
-             'text': 'The original CV opened with context. Your optimised version opens with the number that matters most - Â£4.2M attributed pipeline, 67% year-on-year. That is what earns the next six seconds of attention.'},
+             'text': 'The original CV opened with context. Your optimised version opens with the number that matters most - £4.2M attributed pipeline, 67% year-on-year. That is what earns the next six seconds of attention.'},
             {'title': 'Skills section built from scratch',
              'text': 'This section did not exist in your original CV. A keyword-dense skills block gives the ATS a clean match signal and gives every human reader an immediate picture of what you bring.'},
         ],
