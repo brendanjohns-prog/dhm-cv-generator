@@ -783,6 +783,8 @@ blockquote.dhm cite {
     border: var(--rule);
     display: grid;
     grid-template-columns: 12mm 1fr;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .assess__rail {
     background: var(--dhm-coral);
@@ -806,6 +808,15 @@ blockquote.dhm cite {
     background: var(--dhm-soft-blue);
     border-color: var(--dhm-soft-blue);
     color: var(--dhm-black);
+  }
+  .assess[data-priority="low"] .assess__rail {
+    background: var(--dhm-black);
+    color: var(--dhm-white);
+  }
+  .assess[data-priority="low"] .assess__tag {
+    background: var(--dhm-black);
+    border-color: var(--dhm-black);
+    color: var(--dhm-white);
   }
   .assess__body {
     padding: 7mm 8mm 7mm;
