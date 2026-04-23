@@ -129,18 +129,30 @@ GAPS_PER_PAGE = 3
 # but we trim server-side as a safety net so an over-long response never breaks layout.
 # Body targets: ~3 lines for changes, ~5 lines for gap cards at current font sizes.
 CHANGE_TITLE_MAX = 70
-CHANGE_BODY_MAX = 230
+CHANGE_BODY_MAX = 280
 GAP_TITLE_MAX = 70
 GAP_BODY_MAX = 560
 
 
 def _trim(text, limit):
+    """Safety trim for over-long report bodies.
+
+    If the text fits, return it unchanged. If it needs cutting, prefer the
+    last complete sentence inside the budget so the output reads as
+    deliberately-concise rather than truncated. Falls back to a clean word
+    boundary. No ellipsis is ever appended — the trailing "…" looked
+    unfinished in the rendered PDF.
+    """
     text = (text or '').strip()
     if len(text) <= limit:
         return text
-    # Cut at last word boundary before the limit so we don't mid-word truncate.
-    cut = text[:limit].rsplit(' ', 1)[0].rstrip(',;:-')
-    return cut + '…'
+    budget = text[:limit]
+    # Prefer to end at the last sentence terminator inside the budget.
+    match = re.search(r'^(.*[.!?])(?:\s|$)', budget, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    # Fallback: end at the last word boundary.
+    return budget.rsplit(' ', 1)[0].rstrip(',;:- ')
 
 
 def _paginate(items, per_page, first_page=None):
