@@ -1,9 +1,8 @@
 """
 DHM CV Optimisation API
 -----------------------
-Accepts Claude's CV output via POST /generate or POST /generate-report.
-Handles both structured JSON and cv_draft text formats.
-Returns a formatted .docx file.
+Accepts Claude's structured CV JSON via POST /generate or POST /generate-report.
+Returns a formatted .docx CV or branded PDF report.
 """
 import io
 import logging
@@ -171,142 +170,56 @@ def render_report_pdf(cv_data):
     if response.status_code != 200:
         raise RuntimeError(f'PDFShift error {response.status_code}: {response.text[:500]}')
     return response.content
-def parse_cv_draft(cv_data):
-    """
-    Convert {cv_draft, strategic_changelog, gap_report} text format
-    into the structured dict that build_cv_only/build_report_only expect.
-    """
-    raw = cv_data.get('cv_draft', '')
-    raw = raw.replace('\\n', '\n')
-    lines = [l for l in raw.split('\n')]
-    non_empty = [l.strip() for l in lines if l.strip()]
-    structured = {
-        'name': non_empty[0] if len(non_empty) > 0 else 'NAME UNKNOWN',
-        'tagline': non_empty[1] if len(non_empty) > 1 else '',
-        'contact': non_empty[2] if len(non_empty) > 2 else '',
-        'summary': '',
-        'competencies': '',
-        'tech_role': bool(cv_data.get('is_tech_role', False)),
-        'technical_skills': None,
-        'employment': [],
-        'earlier_career': [],
-        'education': [],
-        'notes': '',
-        'changelog': [],
-        'gap_report': [],
-    }
-    SECTION_PATTERNS = {
-        'summary':          re.compile(r'EXECUTIVE SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|SUMMARY', re.I),
-        'technical_skills': re.compile(r'TECHNOLOGY STACK|TECHNICAL SKILLS|TECHNOLOGY SKILLS|TOOLS AND TECHNOLOGY|TECH STACK', re.I),
-        'competencies':     re.compile(r'CORE COMPETENCIES|KEY COMPETENCIES|COMPETENCIES|KEY SKILLS|SKILLS PROFILE|SKILLS', re.I),
-        'employment':       re.compile(r'PROFESSIONAL EXPERIENCE|EMPLOYMENT HISTORY|WORK EXPERIENCE|EMPLOYMENT|EXPERIENCE', re.I),
-        'earlier_career':   re.compile(r'EARLIER CAREER|EARLY CAREER|PREVIOUS ROLES|ADDITIONAL EXPERIENCE', re.I),
-        'education':        re.compile(r'EDUCATION|QUALIFICATIONS|ACADEMIC|CERTIFICATIONS', re.I),
-        'notes':            re.compile(r'NOTES|ADDITIONAL INFORMATION|ADDITIONAL NOTES|REFERENCES', re.I),
-    }
-    current_section = None
-    section_lines = []
-    def flush_section():
-        if not current_section or not section_lines:
-            return
-        content = '\n'.join(section_lines).strip()
-        if current_section == 'summary':
-            structured['summary'] = content
-        elif current_section == 'competencies':
-            structured['competencies'] = content
-        elif current_section == 'technical_skills':
-            structured['technical_skills'] = content
-        elif current_section == 'notes':
-            structured['notes'] = content
-        elif current_section == 'education':
-            for line in section_lines:
-                line = line.strip()
-                if line:
-                    structured['education'].append(line)
-        elif current_section in ('employment', 'earlier_career'):
-            roles = []
-            current_role = None
-            for line in section_lines:
-                line = line.strip()
-                if not line:
-                    continue
-                is_bullet = line.startswith('•') or line.startswith('-') or line.startswith('*')
-                is_header = bool(re.search(r'\d{4}', line)) and '|' in line
-                if is_header:
-                    if current_role:
-                        roles.append(current_role)
-                    current_role = {'header': line, 'context': '', 'bullets': []}
-                elif current_role is not None:
-                    if is_bullet:
-                        bullet_text = line.lstrip('•-* ').strip()
-                        if bullet_text:
-                            current_role['bullets'].append(bullet_text)
-                    elif not current_role['context']:
-                        current_role['context'] = line
-                    else:
-                        current_role['context'] += ' ' + line
-                else:
-                    roles.append({'title': line, 'text': ''})
-            if current_role:
-                roles.append(current_role)
-            if current_section == 'employment':
-                structured['employment'] = roles
-            else:
-                ec_items = []
-                for r in roles:
-                    title = r.get('header', r.get('title', ''))
-                    title = title.lstrip('-•* ').strip()
-                    context = r.get('context', r.get('text', ''))
-                    bullets = r.get('bullets', [])
-                    combined = title
-                    if context:
-                        combined += ' - ' + context
-                    if bullets:
-                        combined += (' - ' if not context else '; ') + '; '.join(bullets)
-                    if combined:
-                        ec_items.append(combined)
-                structured['earlier_career'] = ec_items
-    for line in lines[3:]:
-        stripped = line.strip()
-        matched = None
-        for sec, pattern in SECTION_PATTERNS.items():
-            if pattern.fullmatch(stripped) or (stripped.isupper() and len(stripped) > 3 and pattern.search(stripped)):
-                matched = sec
-                break
-        if matched:
-            flush_section()
-            current_section = matched
-            section_lines = []
-        elif current_section:
-            section_lines.append(line)
-    flush_section()
-    def parse_text_items(text):
-        if not text:
-            return []
-        text = text.replace('\\n', '\n')
-        items = []
-        parts = re.split(r'\n(?=\d+[\.\)]\s|\-\s|\•\s)', text)
-        for part in parts:
-            part = part.strip().lstrip('0123456789.)- •').strip()
-            if not part:
-                continue
-            bold_match = re.match(r'\*\*(.+?)\*\*\s*[-–—:]*\s*(.*)', part, re.DOTALL)
-            if bold_match:
-                title = bold_match.group(1).strip()
-                body = bold_match.group(2).strip()
-            else:
-                sub = part.split('\n', 1)
-                title = sub[0].strip()
-                body = sub[1].strip() if len(sub) > 1 else ''
-            title = re.sub(r'\*\*(.+?)\*\*', r'\1', title)
-            body = re.sub(r'\*\*(.+?)\*\*', r'\1', body)
-            items.append({'title': title, 'text': body})
-        if not items and text.strip():
-            items.append({'title': 'Notes', 'text': text.strip()})
-        return items
-    structured['changelog'] = parse_text_items(cv_data.get('strategic_changelog', ''))
-    structured['gap_report'] = parse_text_items(cv_data.get('gap_report', ''))
-    return structured
+
+
+def parse_text_items(text):
+    """Convert a numbered/bulleted free-text string from Claude into [{title, text}, ...]
+    for the PDF report generator."""
+    if not text:
+        return []
+    text = text.replace('\\n', '\n')
+    items = []
+    parts = re.split(r'\n(?=\d+[\.\)]\s|\-\s|\•\s)', text)
+    for part in parts:
+        part = part.strip().lstrip('0123456789.)- •').strip()
+        if not part:
+            continue
+
+        # Preferred: Claude returns "**Title** - body" on one line.
+        bold_match = re.match(r'\*\*(.+?)\*\*\s*[-–—:]*\s*(.*)', part, re.DOTALL)
+        if bold_match:
+            title = bold_match.group(1).strip()
+            body = bold_match.group(2).strip()
+        else:
+            # Fallback: title on first line, body on the rest.
+            sub = part.split('\n', 1)
+            title = sub[0].strip()
+            body = sub[1].strip() if len(sub) > 1 else ''
+
+        # Strip any stray markdown bold markers that slipped through.
+        title = re.sub(r'\*\*(.+?)\*\*', r'\1', title)
+        body = re.sub(r'\*\*(.+?)\*\*', r'\1', body)
+
+        items.append({'title': title, 'text': body})
+    if not items and text.strip():
+        items.append({'title': 'Notes', 'text': text.strip()})
+    return items
+
+
+def normalise_report_sections(cv_data):
+    """Claude now returns strategic_changelog and gap_report as plain strings.
+    Convert them to the [{title, text}, ...] shape that render_report_pdf expects."""
+    changelog = cv_data.get('strategic_changelog', cv_data.get('changelog', []))
+    if isinstance(changelog, str):
+        changelog = parse_text_items(changelog)
+    cv_data['changelog'] = changelog or []
+
+    gap = cv_data.get('gap_report', [])
+    if isinstance(gap, str):
+        gap = parse_text_items(gap)
+    cv_data['gap_report'] = gap or []
+    return cv_data
+
 def get_cv_data_from_request():
     """Parse, validate, and normalise the incoming request body."""
     raw_body = request.get_data(as_text=True)
@@ -316,9 +229,12 @@ def get_cv_data_from_request():
         return None, ('No JSON body received', 400)
     if not isinstance(cv_data, dict):
         return None, (f'Expected JSON object, got {type(cv_data).__name__}', 400)
-    if 'cv_draft' in cv_data:
-        logger.info("Detected cv_draft format — converting to structured")
-        cv_data = parse_cv_draft(cv_data)
+
+    # Convert string-form strategic_changelog / gap_report to the [{title, text}, ...]
+    # shape that render_report_pdf expects.
+    cv_data = normalise_report_sections(cv_data)
+
+    # Strip em dashes from all text fields
     cv_data = clean_cv_data(cv_data)
     cv_data = apply_voice_fix(cv_data)
     return cv_data, None

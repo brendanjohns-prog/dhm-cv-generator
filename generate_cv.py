@@ -336,67 +336,82 @@ def _add_cv_content(doc, cv_data):
     add_cv_section_heading(doc, 'PROFESSIONAL SUMMARY')
     _render_summary(doc, cv_data.get('summary', ''))
 
-    is_tech_role = cv_data.get('tech_role', False)
+    tech_role = bool(cv_data.get('tech_role', False))
+    is_senior = bool(cv_data.get('is_senior', False))
+    skills_groups = cv_data.get('skills_groups', []) or []
 
-    # Technical Skills — top for tech roles
-    if is_tech_role and cv_data.get('technical_skills'):
-        add_cv_section_heading(doc, 'TECHNICAL SKILLS')
-        p_tech = doc.add_paragraph()
-        r_tech = p_tech.add_run(cv_data['technical_skills'])
-        set_run_font(r_tech, size=10.5)
+    # Heading for the skills block depends on the two-axis tech_role/is_senior split.
+    if tech_role and is_senior:
+        skills_heading = 'TECHNICAL SKILLS + LEADERSHIP & DELIVERY'
+    elif tech_role:
+        skills_heading = 'TECHNICAL SKILLS'
+    else:
+        skills_heading = 'KEY SKILLS'
 
-    # Skills / Competencies
-    add_cv_section_heading(doc, 'SKILLS')
-    p_comp = doc.add_paragraph()
-    p_comp.paragraph_format.space_before = Pt(4)
-    p_comp.paragraph_format.space_after  = Pt(6)
-    r_comp = p_comp.add_run(cv_data['competencies'])
-    set_run_font(r_comp, size=10.5, color=CORAL)
+    def render_skills():
+        if not skills_groups:
+            return
+        add_cv_section_heading(doc, skills_heading)
+        for group in skills_groups:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(2)
+            p.paragraph_format.space_after  = Pt(2)
+            label = (group.get('label') or '').strip()
+            items = (group.get('items') or '').strip()
+            if label:
+                r_label = p.add_run(f'{label}: ')
+                set_run_font(r_label, size=10.5, bold=True, color=BLACK)
+            r_items = p.add_run(items)
+            set_run_font(r_items, size=10.5, color=DARK_GREY)
 
-    # Work Experience
-    add_cv_section_heading(doc, 'WORK EXPERIENCE')
-    for role in cv_data['employment']:
-        p_role = doc.add_paragraph()
-        p_role.paragraph_format.space_before = Pt(8)
-        p_role.paragraph_format.space_after  = Pt(1)
-        r_role = p_role.add_run(role['header'])
-        set_run_font(r_role, size=10.5, bold=True)
+    def render_employment():
+        add_cv_section_heading(doc, 'WORK EXPERIENCE')
+        for role in cv_data.get('employment', []) or []:
+            p_role = doc.add_paragraph()
+            p_role.paragraph_format.space_before = Pt(8)
+            p_role.paragraph_format.space_after  = Pt(1)
+            header = (role.get('header') or '').upper()
+            r_role = p_role.add_run(header)
+            set_run_font(r_role, size=10.5, bold=True)
 
-        if role.get('context'):
-            p_ctx = doc.add_paragraph()
-            p_ctx.paragraph_format.space_before = Pt(1)
-            p_ctx.paragraph_format.space_after  = Pt(3)
-            r_ctx = p_ctx.add_run(role['context'])
-            set_run_font(r_ctx, size=10, italic=True, color=MID_GREY)
+            if role.get('context'):
+                p_ctx = doc.add_paragraph()
+                p_ctx.paragraph_format.space_before = Pt(1)
+                p_ctx.paragraph_format.space_after  = Pt(3)
+                r_ctx = p_ctx.add_run(role['context'])
+                set_run_font(r_ctx, size=10, italic=True, color=MID_GREY)
 
-        for bullet in (role.get('bullets') or []):
-            add_bullet(doc, bullet)
+            for bullet in (role.get('bullets') or []):
+                add_bullet(doc, bullet)
 
-    # Additional Experience
-    if cv_data.get('earlier_career'):
-        add_cv_section_heading(doc, 'ADDITIONAL EXPERIENCE')
+    def render_earlier_career():
+        if not cv_data.get('earlier_career'):
+            return
+        add_cv_section_heading(doc, 'EARLIER CAREER')
         for item in cv_data['earlier_career']:
-            if isinstance(item, dict):
-                title = item.get('title', '') or ''
-                text  = item.get('text', '')  or ''
-                line  = title + (' - ' + text if text else '')
-            else:
-                line = str(item) if item is not None else ''
+            line = item if isinstance(item, str) else str(item or '')
             if line:
                 add_bullet(doc, line)
 
-    # Education
-    if cv_data.get('education'):
-        add_cv_section_heading(doc, 'EDUCATION')
+    def render_education():
+        if not cv_data.get('education'):
+            return
+        add_cv_section_heading(doc, 'EDUCATION & QUALIFICATIONS')
         for item in cv_data['education']:
             add_bullet(doc, item)
 
-    # Technical Skills — bottom for non-tech roles
-    if not is_tech_role and cv_data.get('technical_skills'):
-        add_cv_section_heading(doc, 'TECHNICAL SKILLS')
-        p_tech = doc.add_paragraph()
-        r_tech = p_tech.add_run(cv_data['technical_skills'])
-        set_run_font(r_tech, size=10.5)
+    if is_senior:
+        # PROFESSIONAL SUMMARY, WORK EXPERIENCE, EARLIER CAREER, SKILLS, EDUCATION
+        render_employment()
+        render_earlier_career()
+        render_skills()
+        render_education()
+    else:
+        # PROFESSIONAL SUMMARY, SKILLS, WORK EXPERIENCE, EARLIER CAREER, EDUCATION
+        render_skills()
+        render_employment()
+        render_earlier_career()
+        render_education()
 
 
 # ---------------------------------------------------------------------------
@@ -657,6 +672,7 @@ def build_cv_doc(cv_data, output_path):
 if __name__ == '__main__':
     cv_data = {
         'tech_role': False,
+        'is_senior': False,
         'name': 'JAMES CARTER',
         'tagline': 'Senior Marketing Manager | Head of Marketing | Demand Generation Lead',
         'contact': '07XXX XXXXXX  •  james.carter@email.com  •  London, UK',
@@ -669,12 +685,20 @@ if __name__ == '__main__':
             'Now seeking a Head of Marketing or Senior Marketing Manager role with full '
             'ownership of pipeline strategy, team, and budget.'
         ),
-        'competencies': (
-            'Demand Generation Strategy  •  B2B SaaS Marketing  •  Account-Based Marketing (ABM)  '
-            '•  Paid Search and Paid Media  •  SEO and Content Strategy  •  Budget Ownership and '
-            'ROI Reporting  •  CRM and Marketing Automation (HubSpot, Salesforce)  •  Marketing '
-            'Attribution  •  Team Leadership  •  Stakeholder Management'
-        ),
+        'skills_groups': [
+            {
+                'label': 'Demand Generation & Strategy',
+                'items': 'Brand Strategy · Campaign Management · Marketing Automation · ABM',
+            },
+            {
+                'label': 'Performance & Analytics',
+                'items': 'Paid Search · Paid Media · SEO · Marketing Attribution · ROI Reporting',
+            },
+            {
+                'label': 'Leadership',
+                'items': 'Team Leadership · Stakeholder Management · Budget Ownership',
+            },
+        ],
         'employment': [
             {
                 'header': 'MARKETING MANAGER  |  TECHFLOW LTD  |  Feb 2021 - Present',
@@ -695,10 +719,6 @@ if __name__ == '__main__':
             'BA (Hons) Marketing, 2:1  -  University of Leeds (2013-2016)',
             'HubSpot Marketing Software Certification  -  2023',
         ],
-        'technical_skills': (
-            'HubSpot  •  Salesforce  •  Google Analytics 4  •  SEMrush  •  Google Ads  '
-            '•  Meta Ads  •  LinkedIn Campaign Manager  •  Looker Studio'
-        ),
         'changelog': [
             {'title': 'ATS title injection',
              'text': 'Your target job titles now appear directly under your name. ATS systems match on exact title strings before a human reads a word. Candidates without those strings are filtered out regardless of their experience.'},
