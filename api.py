@@ -155,6 +155,10 @@ def render_report_pdf(cv_data):
         'thanks_page': thanks_page,
     }
     html = template.render(**context)
+    # Cache-bust: a unique comment ensures PDFShift treats every render as
+    # new even when the visible content is identical (avoids serving stale PDFs).
+    import time as _time
+    html = html.replace('</body>', f'<!-- gen {_time.time()} --></body>')
     response = requests.post(
         PDFSHIFT_URL,
         auth=('api', PDFSHIFT_API_KEY),

@@ -2,6 +2,9 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <title>CV Optimisation Report — {{ name }}</title>
 <style>
 /* =========================================================
@@ -15,6 +18,9 @@
 
 /* ---------- Webfonts (Inter via Google Fonts) ---------- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Preconnect hint for headless Chrome (parsed even inside <style>) */
+/* Fallback: if Google Fonts fails, the --font-sans stack provides system fonts */
 
 :root {
   /* ====== Core palette (from brand guidelines §3) ====== */
@@ -332,68 +338,70 @@ blockquote.dhm cite {
      Minimal, typographic, coral accent.
      Comma glyph as the single brand wink.
      ============================================================ */
+  /* ============================================================
+     COVER — built to spec.
+     Layout: A4 column flex (runner | body | footer)
+     Padding: 16mm top, 18mm sides, 14mm bottom
+     ============================================================ */
   .cover {
-    /* Padding matches CV Tailoring Guide: 16mm top / 14mm bottom / 18mm sides */
     padding: 16mm 18mm 14mm;
     display: grid;
     grid-template-rows: auto 1fr auto;
   }
+
+  /* Runner */
   .cover__top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center;
     padding-bottom: 6mm;
-    border-bottom: var(--rule);
+    border-bottom: 0.4mm solid var(--dhm-black);
   }
   .cover__logo {
-    height: auto;
-    width: 75mm;
+    height: 20px;
+    width: auto;
+    display: block;
   }
   .cover__meta {
     text-align: right;
-    font-size: 8.5pt;
-    letter-spacing: 0.1em;
+    font-size: 9pt;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--dhm-black);
-    line-height: 1.7;
+    line-height: 1.6;
     font-weight: 600;
   }
   .cover__meta .coral { color: var(--dhm-coral); }
 
+  /* Body — flex column, hero at top, meta floats to bottom */
   .cover__body {
-    /* Flex column so the client meta floats to the bottom of body (matches Guide) */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding-top: 36mm;   /* Guide's .hero-block padding-top */
+    padding-top: 32mm;
     position: relative;
     min-height: 0;
   }
 
+  /* Eyebrow */
   .cover__eyebrow {
-    font-size: 9pt;
+    font-size: 9.5pt;
     font-weight: 700;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    margin-bottom: 10mm;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    margin-bottom: 5mm;
   }
   .cover__eyebrow::before {
-    content: "";
-    width: 28px;
-    height: 1px;
-    background: var(--dhm-coral);
-    display: inline-block;
+    content: "— ";
   }
 
+  /* H1 hero */
   .cover__title {
-    font-size: 76pt;
+    font-size: 60pt;
     font-weight: 700;
-    line-height: 0.94;
-    letter-spacing: -0.04em;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
     margin: 0;
     text-wrap: balance;
   }
@@ -403,67 +411,74 @@ blockquote.dhm cite {
     font-style: italic;
     font-weight: 400;
   }
-  .cover__subtitle {
-    margin-top: 12mm;
-    font-size: 14pt;
+
+  /* Lede — built to spec.
+     Prefixed with .cover to win specificity over the generic .page p rule. */
+  .cover .cover__subtitle {
+    margin-top: 8mm;
+    margin-bottom: 0;
+    font-size: 11pt;
     font-weight: 400;
-    line-height: 1.35;
-    max-width: 140mm;
-    color: var(--dhm-black);
-    letter-spacing: -0.005em;
+    line-height: 1.5;
+    max-width: 150mm;
+    width: 150mm;
+    color: rgba(0, 0, 0, 0.85);
+    align-self: flex-start;
   }
-  .cover__subtitle strong {
+  .cover .cover__subtitle strong {
     font-weight: 600;
   }
 
+  /* Meta table — floats to bottom via margin-top: auto */
   .cover__client {
-    /* margin-top: auto pushes this block to the bottom of cover__body (Guide pattern) */
     margin-top: auto;
     margin-bottom: 8mm;
-    display: flex;
-    align-items: stretch;
-    border-top: var(--rule);
-    border-bottom: var(--rule);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-top: 0.4mm solid var(--dhm-black);
+    border-bottom: 0.4mm solid var(--dhm-black);
     padding: 5mm 0;
   }
   .cover__client > div {
-    flex: 1;
     padding-right: 8mm;
   }
   .cover__client > div + div {
-    border-left: var(--rule);
+    border-left: 0.4mm solid rgba(0, 0, 0, 0.2);
     padding-left: 8mm;
   }
   .cover__client .label {
-    font-size: 8pt;
+    display: block;
+    font-size: 7pt;
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    display: block;
     margin-bottom: 3mm;
+    white-space: nowrap;
   }
   .cover__client .value {
-    font-size: 13pt;
+    display: block;
+    font-size: 11pt;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    line-height: 1.3;
+    margin-bottom: 2mm;
   }
   .cover__client .value small {
     display: block;
-    font-size: 9pt;
+    font-size: 8pt;
     font-weight: 400;
-    color: var(--dhm-black);
-    letter-spacing: 0;
-    margin-top: 2mm;
     line-height: 1.4;
+    color: rgba(0, 0, 0, 0.6);
+    margin: 0;
   }
 
+  /* Footer */
   .cover__bottom {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     padding-top: 6mm;
-    border-top: var(--rule);
+    border-top: 0.4mm solid var(--dhm-black);
     font-size: 8.5pt;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -503,22 +518,23 @@ blockquote.dhm cite {
   }
 
   /* LABELS → black (uppercase letter-spaced category headers) */
-  .cover .cover__eyebrow,
   .cover .cover__client .label,
   .cover .cover__bottom .tag {
     color: var(--dhm-black);
   }
+  /* Eyebrow in white on the coral cover */
+  .cover .cover__eyebrow {
+    color: var(--dhm-white);
+  }
   .cover .cover__eyebrow::before {
-    background: var(--dhm-black);
+    color: var(--dhm-white);
   }
   /* Top-right meta — drop the coral highlight so the whole block reads as one black label */
   .cover .cover__meta .coral {
     color: var(--dhm-black);
   }
 
-  /* VALUES / BODY TEXT → white */
-  .cover .cover__subtitle,
-  .cover .cover__subtitle strong,
+  /* VALUES / BODY TEXT → white (the lede is excluded — per spec it inherits) */
   .cover .cover__client .value,
   .cover .cover__client .value small,
   .cover .cover__title .comma,
@@ -825,6 +841,8 @@ blockquote.dhm cite {
     padding: 2.5mm 0;
     border-top: var(--rule-coral);
     align-items: start;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .change:last-child { border-bottom: var(--rule-coral); }
   .change__num {
@@ -867,6 +885,8 @@ blockquote.dhm cite {
   }
   .assess__rail {
     background: var(--dhm-coral);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
     color: var(--dhm-white);
     writing-mode: vertical-rl;
     transform: rotate(180deg);
@@ -882,20 +902,28 @@ blockquote.dhm cite {
   .assess[data-priority="medium"] .assess__rail {
     background: var(--dhm-soft-blue);
     color: var(--dhm-black);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .assess[data-priority="medium"] .assess__tag {
     background: var(--dhm-soft-blue);
     border-color: var(--dhm-soft-blue);
     color: var(--dhm-black);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .assess[data-priority="low"] .assess__rail {
     background: var(--dhm-black);
     color: var(--dhm-white);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .assess[data-priority="low"] .assess__tag {
     background: var(--dhm-black);
     border-color: var(--dhm-black);
     color: var(--dhm-white);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .assess__body {
     padding: 5mm 7mm 5mm;
@@ -929,6 +957,8 @@ blockquote.dhm cite {
     background: var(--dhm-coral);
     color: var(--dhm-white);
     border-color: var(--dhm-coral);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .assess__title {
     font-size: 15pt;
@@ -959,24 +989,25 @@ blockquote.dhm cite {
     gap: 0;
   }
   .closer__lede {
-    font-size: 12.5pt;
-    line-height: 1.35;
+    font-size: 13pt;
+    line-height: 1.5;
     font-weight: 500;
     letter-spacing: -0.01em;
     max-width: 155mm;
-    margin: 0 0 2mm;
+    margin: 0 0 9mm;
   }
   .closer__lede .coral { color: var(--dhm-coral); }
 
+  /* No borders — the body + signed kicker + photo block read as one
+     continuous handwritten letter, not three separated blocks. */
   .signoff {
-    padding: 3mm 0;
-    border-top: var(--rule);
-    border-bottom: var(--rule);
-    margin: 1mm 0 3mm;
+    padding: 0;
+    border: none;
+    margin: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 1mm;
+    gap: 3mm;
   }
   .signoff__kicker {
     font-size: 9pt;
@@ -986,7 +1017,7 @@ blockquote.dhm cite {
     color: var(--dhm-coral);
   }
   .signoff img {
-    width: 75mm;
+    width: 80mm;
     max-width: 100%;
     height: auto;
     display: block;
@@ -1060,16 +1091,24 @@ blockquote.dhm cite {
   }
 
   /* ============================================================
-     THANK-YOU PAGE — tighter scale so the DHM Journey fits one page
+     THANK-YOU PAGE — tuned padding + spacing for the new signed-letter
+     layout (Thank-you block sits lower, journey breathes from below).
      ============================================================ */
-  .thanks .section-num { margin-bottom: 1mm; }
-  .thanks h1.section-title { font-size: 22pt; margin: 0 0 2mm; }
+  .thanks {
+    padding: 9mm var(--page-pad-x) 9mm;
+  }
+  /* Push the Section 04 / Thank-you title down so it doesn't crowd the runner */
+  .thanks .section-num {
+    margin-top: 14mm;
+    margin-bottom: 4mm;
+  }
 
   /* ============================================================
      DHM JOURNEY — 5-step horizontal stepper on the final page
      ============================================================ */
   .journey {
-    margin-top: 0;
+    /* Breathing room so the journey doesn't crowd the Signed block above */
+    margin-top: 18mm;
   }
   .journey__head {
     font-size: 9pt;
@@ -1077,21 +1116,21 @@ blockquote.dhm cite {
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    margin-bottom: 3mm;
+    margin-bottom: 4mm;
   }
   .journey__title {
     font-size: 20pt;
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.1;
-    margin: 0 0 3mm;
+    margin: 0 0 4mm;
     max-width: 150mm;
   }
   .journey__lede {
     font-size: 10pt;
     line-height: 1.45;
     color: var(--dhm-black);
-    margin: 0 0 4mm;
+    margin: 0 0 6mm;
     max-width: 155mm;
   }
 
@@ -1102,9 +1141,13 @@ blockquote.dhm cite {
   /* The line that connects the circles. Behind them. */
   .journey__line {
     position: absolute;
-    left: 8%;
-    right: 8%;
-    top: 4.5mm;      /* aligns with vertical centre of the 9mm circles */
+    /* Connects the centres of the leftmost and rightmost circles.
+       Circles are left-anchored in each 20%-wide cell, so circle 1 centre
+       is ~4.5mm in from left, and circle 5 centre is ~4.5mm in from the
+       left of the last cell (which starts at 80% across). */
+    left: 4.5mm;
+    right: calc(20% - 4.5mm);
+    top: 4.5mm;
     height: 0.6mm;
     background: #C4C4C4;
     z-index: 0;
@@ -1113,17 +1156,21 @@ blockquote.dhm cite {
     position: relative;
     z-index: 1;
     table-layout: fixed;
+    width: 100%;
   }
   .journey__cell {
     width: 20%;
-    text-align: center;
+    text-align: left;
     vertical-align: top;
-    padding: 0 2mm;
+    padding: 0 4mm 0 0;   /* gutter only on right of each cell except last */
+  }
+  .journey__cell:last-child {
+    padding-right: 0;
   }
   .journey__circle {
     width: 9mm;
     height: 9mm;
-    margin: 0 auto;
+    margin: 0 0 0 0;      /* circle anchored to LEFT of cell, matching text */
     border: 1px solid #C4C4C4;
     border-radius: 50%;
     background: var(--dhm-white);
@@ -1138,11 +1185,15 @@ blockquote.dhm cite {
     background: var(--dhm-coral);
     border-color: var(--dhm-coral);
     color: var(--dhm-white);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .journey__circle--goal {
     background: #8A8A8A;
     border-color: #8A8A8A;
     color: var(--dhm-white);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
     font-size: 12pt;
   }
   .journey__circle-link,
@@ -1152,79 +1203,53 @@ blockquote.dhm cite {
     display: block;
   }
   .journey__label {
-    font-size: 7.5pt;
+    font-size: 7pt;
     font-weight: 700;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--dhm-coral);
     margin-top: 4mm;
-    margin-bottom: 1mm;
+    margin-bottom: 1.5mm;
   }
   .journey__cell--current .journey__label,
   .journey__cell:has(.journey__circle--current) .journey__label {
     /* Step 1 label colour matches active state */
   }
   .journey__name {
-    font-size: 9.5pt;
+    font-size: 10pt;
     font-weight: 700;
     color: var(--dhm-black);
-    margin-bottom: 1.5mm;
-    line-height: 1.2;
+    margin-bottom: 2mm;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
   }
   .journey__desc {
-    font-size: 8pt;
+    font-size: 7pt;
     line-height: 1.35;
-    color: var(--dhm-black);
+    color: #4A4A4A;
     margin: 0;
   }
   .journey__pill {
     display: inline-block;
-    margin-top: 3mm;
-    padding: 1.2mm 3mm;
-    background: rgba(220, 106, 99, 0.15);
-    color: var(--dhm-coral);
-    font-size: 7.5pt;
+    margin-top: -1.5mm;   /* pull tight against the description text */
+    padding: 1mm 2.5mm;
+    font-size: 6.5pt;
     font-weight: 700;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     border-radius: 1mm;
   }
-
-  .journey__cta {
-    margin-top: 3mm;
-    padding-top: 3mm;
-    border-top: var(--rule);
-    display: flex;
-    align-items: center;
-    gap: 5mm;
+  /* DONE = completed step (subtle, coral-tinted) */
+  .journey__pill--done {
+    background: rgba(220, 106, 99, 0.15);
+    color: var(--dhm-coral);
   }
-  .journey__cta-btn {
-    display: inline-block;
-    padding: 3mm 6mm;
+  /* NEXT STEP = forward action (filled coral, draws the eye) */
+  .journey__pill--next {
     background: var(--dhm-coral);
     color: var(--dhm-white);
-    font-size: 11pt;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-decoration: none;
-    border-radius: 1mm;
-    white-space: nowrap;
-  }
-  .journey__cta-sub {
-    font-size: 9pt;
-    color: var(--dhm-black);
-    font-weight: 400;
   }
 
-  .journey__close {
-    margin-top: 3mm;
-    font-size: 9pt;
-    line-height: 1.4;
-    color: var(--dhm-black);
-  }
-  .journey__close strong {
-    font-weight: 700;
-  }
 
   /* ============================================================
      UTILITIES
@@ -1329,17 +1354,39 @@ blockquote.dhm cite {
      ============================================================ */
   @page { size: A4; margin: 0; }
   @media print {
-    html, body { background: #fff; }
-    .doc { gap: 0; padding: 0; }
+    /* Force every container to A4 with no margin so Chrome's print engine
+       can't squeeze the page narrower (which leaves a white gap on the right). */
+    html, body {
+      width: 210mm;
+      margin: 0;
+      padding: 0;
+      background: var(--dhm-white);
+      overflow: hidden;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .doc {
+      width: 210mm;
+      gap: 0;
+      padding: 0;
+      margin: 0;
+      background: var(--dhm-white);
+    }
     .page {
       box-shadow: none;
       margin: 0;
+      height: var(--page-h);
+      overflow: hidden;
       page-break-after: always;
       break-after: page;
     }
     .page:last-child {
       page-break-after: auto;
       break-after: auto;
+    }
+    .page.cover {
+      background: var(--dhm-coral);
+      box-shadow: 0 0 0 2mm var(--dhm-coral);
     }
     #tweaks, #tweaks-toggle-note { display: none !important; }
   }
@@ -1671,7 +1718,7 @@ blockquote.dhm cite {
     </div>
 
     <div class="section-num">Section 04</div>
-    <h1 class="section-title">Thank you<span class="comma-wink" style="font-size: 24pt;">,</span></h1>
+    <h1 class="section-title">Thank you<span class="comma-wink" style="font-size: 30pt;">,</span></h1>
     <p class="closer__lede">
       It is a privilege to work on something that matters this much. Helping
       people navigate <span class="coral">a system that was not built in their
@@ -1722,21 +1769,20 @@ blockquote.dhm cite {
           <tr>
             <td class="journey__cell">
               <div class="journey__label">Step 1</div>
-              <div class="journey__name">CV Optimisation</div>
+              <div class="journey__name">CV<br/>Optimisation</div>
               <p class="journey__desc">
-                Updating an existing CV or starting from scratch. The outcome
-                is the same: shortlisted.
+                Optimise your existing or new CV.
               </p>
-              <span class="journey__pill">You are here</span>
+              <span class="journey__pill journey__pill--done">Done</span>
             </td>
             <td class="journey__cell">
               <a class="journey__link" href="https://dhm-waitlist.netlify.app/linkedin-optimisation">
                 <div class="journey__label">Step 2</div>
                 <div class="journey__name">LinkedIn Optimisation</div>
                 <p class="journey__desc">
-                  Profile optimised for algorithms and the recruiters who
-                  search them.
+                  Optimised for algorithms and the recruiters who search them.
                 </p>
+                <span class="journey__pill journey__pill--next">Next step</span>
               </a>
             </td>
             <td class="journey__cell">
@@ -1744,7 +1790,7 @@ blockquote.dhm cite {
                 <div class="journey__label">Step 3</div>
                 <div class="journey__name">Job Search Strategy</div>
                 <p class="journey__desc">
-                  Target the right roles. Access the hidden job market.
+                  Target the right roles. Access the hidden market.
                 </p>
               </a>
             </td>
@@ -1759,7 +1805,7 @@ blockquote.dhm cite {
             </td>
             <td class="journey__cell">
               <div class="journey__label">Goal</div>
-              <div class="journey__name">Role Secured</div>
+              <div class="journey__name">Role<br/>Secured</div>
               <p class="journey__desc">
                 The outcome everything points toward.
               </p>
@@ -1768,19 +1814,6 @@ blockquote.dhm cite {
         </table>
       </div>
 
-      <div class="journey__cta">
-        <a class="journey__cta-btn" href="https://dhm-waitlist.netlify.app/linkedin-optimisation">
-          Start Step 2 &rarr;
-        </a>
-        <span class="journey__cta-sub">or click on any step to get started</span>
-      </div>
-
-      <p class="journey__close">
-        Every process is tailored to consider <strong>your</strong> career,
-        your goals, your gaps &mdash; not a template applied to everyone.
-        That consistency across every step is what makes the DHM approach
-        different.
-      </p>
     </div>
 
     <div class="page__footer">
