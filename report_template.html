@@ -341,21 +341,22 @@ blockquote.dhm cite {
   .cover__top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center;
     padding-bottom: 6mm;
     border-bottom: var(--rule);
   }
   .cover__logo {
-    height: auto;
-    width: 75mm;
+    height: 20px;
+    width: auto;
+    display: block;
   }
   .cover__meta {
     text-align: right;
-    font-size: 8.5pt;
-    letter-spacing: 0.1em;
+    font-size: 9pt;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--dhm-black);
-    line-height: 1.7;
+    line-height: 1.6;
     font-weight: 600;
   }
   .cover__meta .coral { color: var(--dhm-coral); }
@@ -365,35 +366,28 @@ blockquote.dhm cite {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding-top: 36mm;   /* Guide's .hero-block padding-top */
+    padding-top: 32mm;
     position: relative;
     min-height: 0;
   }
 
   .cover__eyebrow {
-    font-size: 9pt;
+    font-size: 9.5pt;
     font-weight: 700;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    margin-bottom: 10mm;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    margin-bottom: 5mm;
   }
   .cover__eyebrow::before {
-    content: "";
-    width: 28px;
-    height: 1px;
-    background: var(--dhm-coral);
-    display: inline-block;
+    content: "— ";
   }
 
   .cover__title {
-    font-size: 76pt;
+    font-size: 60pt;
     font-weight: 700;
-    line-height: 0.94;
-    letter-spacing: -0.04em;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
     margin: 0;
     text-wrap: balance;
   }
@@ -403,31 +397,31 @@ blockquote.dhm cite {
     font-style: italic;
     font-weight: 400;
   }
-  .cover__subtitle {
-    margin-top: 12mm;
-    font-size: 14pt;
+  .cover .cover__subtitle {
+    margin-top: 8mm;
+    margin-bottom: 0;
+    font-size: 11pt;
     font-weight: 400;
-    line-height: 1.35;
-    max-width: 140mm;
-    color: var(--dhm-black);
-    letter-spacing: -0.005em;
+    line-height: 1.5;
+    max-width: 150mm;
+    width: 150mm;
+    color: rgba(0, 0, 0, 0.85);
+    align-self: flex-start;
   }
-  .cover__subtitle strong {
+  .cover .cover__subtitle strong {
     font-weight: 600;
   }
 
   .cover__client {
-    /* margin-top: auto pushes this block to the bottom of cover__body (Guide pattern) */
     margin-top: auto;
     margin-bottom: 8mm;
-    display: flex;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     border-top: var(--rule);
     border-bottom: var(--rule);
     padding: 5mm 0;
   }
   .cover__client > div {
-    flex: 1;
     padding-right: 8mm;
   }
   .cover__client > div + div {
@@ -435,27 +429,29 @@ blockquote.dhm cite {
     padding-left: 8mm;
   }
   .cover__client .label {
-    font-size: 8pt;
+    display: block;
+    font-size: 7pt;
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    display: block;
     margin-bottom: 3mm;
+    white-space: nowrap;
   }
   .cover__client .value {
-    font-size: 13pt;
+    display: block;
+    font-size: 11pt;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    line-height: 1.3;
+    margin-bottom: 2mm;
   }
   .cover__client .value small {
     display: block;
-    font-size: 9pt;
+    font-size: 8pt;
     font-weight: 400;
-    color: var(--dhm-black);
-    letter-spacing: 0;
-    margin-top: 2mm;
     line-height: 1.4;
+    color: rgba(0, 0, 0, 0.6);
+    margin: 0;
   }
 
   .cover__bottom {
@@ -503,22 +499,23 @@ blockquote.dhm cite {
   }
 
   /* LABELS → black (uppercase letter-spaced category headers) */
-  .cover .cover__eyebrow,
   .cover .cover__client .label,
   .cover .cover__bottom .tag {
     color: var(--dhm-black);
   }
+  /* Eyebrow in white on the coral cover */
+  .cover .cover__eyebrow {
+    color: var(--dhm-white);
+  }
   .cover .cover__eyebrow::before {
-    background: var(--dhm-black);
+    color: var(--dhm-white);
   }
   /* Top-right meta — drop the coral highlight so the whole block reads as one black label */
   .cover .cover__meta .coral {
     color: var(--dhm-black);
   }
 
-  /* VALUES / BODY TEXT → white */
-  .cover .cover__subtitle,
-  .cover .cover__subtitle strong,
+  /* VALUES / BODY TEXT → white (the lede is excluded — per spec it inherits) */
   .cover .cover__client .value,
   .cover .cover__client .value small,
   .cover .cover__title .comma,
