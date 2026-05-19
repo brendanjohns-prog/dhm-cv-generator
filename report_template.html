@@ -965,6 +965,8 @@ blockquote.dhm cite {
   }
   .closer__lede .coral { color: var(--dhm-coral); }
 
+  /* No borders — the body + signed kicker + photo block read as one
+     continuous handwritten letter, not three separated blocks. */
   .signoff {
     padding: 0;
     border: none;
@@ -1056,11 +1058,13 @@ blockquote.dhm cite {
   }
 
   /* ============================================================
-     THANK-YOU PAGE — tighter scale so the DHM Journey fits one page
+     THANK-YOU PAGE — tuned padding + spacing for the new signed-letter
+     layout (Thank-you block sits lower, journey breathes from below).
      ============================================================ */
   .thanks {
     padding: 9mm var(--page-pad-x) 9mm;
   }
+  /* Push the Section 04 / Thank-you title down so it doesn't crowd the runner */
   .thanks .section-num {
     margin-top: 14mm;
     margin-bottom: 4mm;
@@ -1070,6 +1074,7 @@ blockquote.dhm cite {
      DHM JOURNEY — 5-step horizontal stepper on the final page
      ============================================================ */
   .journey {
+    /* Breathing room so the journey doesn't crowd the Signed block above */
     margin-top: 18mm;
   }
   .journey__head {
@@ -1096,124 +1101,121 @@ blockquote.dhm cite {
     max-width: 155mm;
   }
 
-  /* ---- DHM Journey Strip (PDFShift-safe: mm layout, pt type) ---- */
-  .dhm-journey {
-    background: #F5F5F4;
-    border-radius: 2mm;
-    padding: 7mm 7mm 6mm;
-    margin: 0;
-  }
-  .dj-steps {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+  .journey__track {
     position: relative;
+    margin-bottom: 3mm;
   }
-  .dj-rail {
+  /* The line that connects the circles. Behind them. */
+  .journey__line {
     position: absolute;
-    top: 5mm;
-    left: 5mm;
-    right: calc(20% - 5mm);
-    height: 0.5mm;
-    background: #D8D4CD;
+    /* Connects the centres of the leftmost and rightmost circles.
+       Circles are left-anchored in each 20%-wide cell, so circle 1 centre
+       is ~4.5mm in from left, and circle 5 centre is ~4.5mm in from the
+       left of the last cell (which starts at 80% across). */
+    left: 4.5mm;
+    right: calc(20% - 4.5mm);
+    top: 4.5mm;
+    height: 0.6mm;
+    background: #C4C4C4;
     z-index: 0;
   }
-  .dj-rail-fill {
-    position: absolute;
-    top: 0; left: 0;
-    height: 0.5mm;
-    background: #DC6A63;
-    width: 12%;
-  }
-  .dj-step {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  .journey__steps {
     position: relative;
     z-index: 1;
-    padding-right: 3mm;
+    table-layout: fixed;
+    width: 100%;
   }
-  .dj-dot {
-    width: 10mm;
-    height: 10mm;
+  .journey__cell {
+    width: 20%;
+    text-align: left;
+    vertical-align: top;
+    padding: 0 4mm 0 0;   /* gutter only on right of each cell except last */
+  }
+  .journey__cell:last-child {
+    padding-right: 0;
+  }
+  .journey__circle {
+    width: 9mm;
+    height: 9mm;
+    margin: 0 0 0 0;      /* circle anchored to LEFT of cell, matching text */
+    border: 1px solid #C4C4C4;
     border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 8pt;
-    font-weight: 800;
-    margin-bottom: 3mm;
-    background: #EDECEA;
-    border: 0.4mm solid #C9C5BE;
-    color: #999;
-    flex-shrink: 0;
-  }
-  .dj-step.done .dj-dot {
-    background: #DC6A63;
-    border-color: #DC6A63;
-    color: #fff;
-    font-size: 0;
-  }
-  .dj-step.done .dj-dot svg {
-    width: 4mm; height: 4mm;
-    display: block;
-  }
-  .dj-step.next .dj-dot {
-    background: #DC6A63;
-    border-color: #DC6A63;
-    color: #fff;
-  }
-  .dj-step.goal .dj-dot {
-    background: #000;
-    border-color: #000;
-    font-size: 0;
-  }
-  .dj-step.goal .dj-dot svg {
-    width: 4mm; height: 4mm;
-    display: block;
-  }
-  .dj-num {
-    font-size: 6pt;
+    background: var(--dhm-white);
+    color: #8A8A8A;
+    font-size: 10pt;
     font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #bbb;
-    margin: 0 0 1mm;
-  }
-  .dj-step.next .dj-num { color: #DC6A63; }
-  .dj-step.goal .dj-num { color: #000; }
-  .dj-title {
-    font-size: 7.5pt;
-    font-weight: 700;
-    line-height: 1.3;
-    margin: 0 0 1.5mm;
-    color: #000;
-  }
-  .dj-step.done .dj-title { color: #aaa; }
-  .dj-blurb {
-    font-size: 7pt;
-    line-height: 1.5;
-    color: #888;
-    margin: 0;
-  }
-  .dj-step.done .dj-blurb { color: #bbb; }
-  .dj-tag {
-    display: inline-block;
-    margin-top: 2.5mm;
-    font-size: 6pt;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 1mm 2.5mm;
-    border-radius: 0.8mm;
-    background: #DC6A63;
-    color: #fff;
+    line-height: 9mm;
+    text-align: center;
     text-decoration: none;
   }
-  .dj-tag.done-tag {
-    background: #E0DDD8;
-    color: #888;
+  .journey__circle--current {
+    background: var(--dhm-coral);
+    border-color: var(--dhm-coral);
+    color: var(--dhm-white);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  a.dj-tag { text-decoration: none; }
+  .journey__circle--goal {
+    background: #8A8A8A;
+    border-color: #8A8A8A;
+    color: var(--dhm-white);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 12pt;
+  }
+  .journey__circle-link,
+  .journey__link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .journey__label {
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--dhm-coral);
+    margin-top: 4mm;
+    margin-bottom: 1.5mm;
+  }
+  .journey__cell--current .journey__label,
+  .journey__cell:has(.journey__circle--current) .journey__label {
+    /* Step 1 label colour matches active state */
+  }
+  .journey__name {
+    font-size: 10pt;
+    font-weight: 700;
+    color: var(--dhm-black);
+    margin-bottom: 2mm;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+  .journey__desc {
+    font-size: 7pt;
+    line-height: 1.35;
+    color: #4A4A4A;
+    margin: 0;
+  }
+  .journey__pill {
+    display: inline-block;
+    margin-top: -1.5mm;   /* pull tight against the description text */
+    padding: 1mm 2.5mm;
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border-radius: 1mm;
+  }
+  /* DONE = completed step (subtle, coral-tinted) */
+  .journey__pill--done {
+    background: rgba(220, 106, 99, 0.15);
+    color: var(--dhm-coral);
+  }
+  /* NEXT STEP = forward action (filled coral, draws the eye) */
+  .journey__pill--next {
+    background: var(--dhm-coral);
+    color: var(--dhm-white);
+  }
 
   /* ============================================================
      UTILITIES
@@ -1682,60 +1684,87 @@ blockquote.dhm cite {
 
     <div class="journey">
       <div class="journey__head">— The DHM journey</div>
-      <h2 class="journey__title">The rest of the journey starts here,</h2>
+      <h2 class="journey__title">We don&rsquo;t stop at the CV.</h2>
       <p class="journey__lede">
         DHM is a complete career coaching journey &mdash; and every step is
         built specifically for your situation. One consistent expert lens,
-        from your CV all the way to the offer.
+        all the way to the offer.
       </p>
 
-      <div class="dhm-journey" aria-label="Where this fits in the DHM journey">
-        <div class="dj-steps">
-          <div class="dj-rail" aria-hidden="true">
-            <div class="dj-rail-fill"></div>
-          </div>
-          <div class="dj-step done">
-            <span class="dj-dot">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </span>
-            <p class="dj-num">Step 1</p>
-            <p class="dj-title">CV Optimisation</p>
-            <p class="dj-blurb">Your CV, rebuilt to get shortlisted.</p>
-            <span class="dj-tag done-tag">Done</span>
-          </div>
-          <div class="dj-step next">
-            <span class="dj-dot">2</span>
-            <p class="dj-num">Step 2</p>
-            <p class="dj-title">LinkedIn Optimisation</p>
-            <p class="dj-blurb">Your profile found and shortlisted by recruiters.</p>
-            <a class="dj-tag" href="https://dhm-waitlist.netlify.app/linkedin-optimisation">Up next</a>
-          </div>
-          <div class="dj-step">
-            <span class="dj-dot">3</span>
-            <p class="dj-num">Step 3</p>
-            <p class="dj-title">Job Search Strategy</p>
-            <p class="dj-blurb">Target the right roles. Access the hidden job market.</p>
-          </div>
-          <div class="dj-step">
-            <span class="dj-dot">4</span>
-            <p class="dj-num">Step 4</p>
-            <p class="dj-title">Interview Preparation</p>
-            <p class="dj-blurb">Tailored. Rehearsed. Ready for the room.</p>
-          </div>
-          <div class="dj-step goal">
-            <span class="dj-dot" aria-hidden="true">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2.5l2.78 6.34 6.91.62-5.21 4.59 1.55 6.78L12 17.27l-6.03 3.56 1.55-6.78L2.31 9.46l6.91-.62L12 2.5z" fill="#DC6A63"/>
-              </svg>
-            </span>
-            <p class="dj-num">Goal</p>
-            <p class="dj-title">Role Secured</p>
-            <p class="dj-blurb">The outcome everything points toward.</p>
-          </div>
-        </div>
+      <div class="journey__track">
+        <div class="journey__line"></div>
+        <table class="journey__steps" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="journey__cell journey__cell--current">
+              <div class="journey__circle journey__circle--current">&#10003;</div>
+            </td>
+            <td class="journey__cell">
+              <a class="journey__circle-link" href="https://dhm-waitlist.netlify.app/linkedin-optimisation">
+                <div class="journey__circle">2</div>
+              </a>
+            </td>
+            <td class="journey__cell">
+              <a class="journey__circle-link" href="https://dhm-waitlist.netlify.app/job-search-strategy">
+                <div class="journey__circle">3</div>
+              </a>
+            </td>
+            <td class="journey__cell">
+              <a class="journey__circle-link" href="https://dhm-waitlist.netlify.app/interview-preparation">
+                <div class="journey__circle">4</div>
+              </a>
+            </td>
+            <td class="journey__cell">
+              <div class="journey__circle journey__circle--goal">&#9733;</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="journey__cell">
+              <div class="journey__label">Step 1</div>
+              <div class="journey__name">CV<br/>Optimisation</div>
+              <p class="journey__desc">
+                Optimise your existing or new CV.
+              </p>
+              <span class="journey__pill journey__pill--done">Done</span>
+            </td>
+            <td class="journey__cell">
+              <a class="journey__link" href="https://dhm-waitlist.netlify.app/linkedin-optimisation">
+                <div class="journey__label">Step 2</div>
+                <div class="journey__name">LinkedIn Optimisation</div>
+                <p class="journey__desc">
+                  Optimised for algorithms and the recruiters who search them.
+                </p>
+                <span class="journey__pill journey__pill--next">Next step</span>
+              </a>
+            </td>
+            <td class="journey__cell">
+              <a class="journey__link" href="https://dhm-waitlist.netlify.app/job-search-strategy">
+                <div class="journey__label">Step 3</div>
+                <div class="journey__name">Job Search Strategy</div>
+                <p class="journey__desc">
+                  Target the right roles. Access the hidden market.
+                </p>
+              </a>
+            </td>
+            <td class="journey__cell">
+              <a class="journey__link" href="https://dhm-waitlist.netlify.app/interview-preparation">
+                <div class="journey__label">Step 4</div>
+                <div class="journey__name">Interview Preparation</div>
+                <p class="journey__desc">
+                  Tailored. Rehearsed. Ready for the room.
+                </p>
+              </a>
+            </td>
+            <td class="journey__cell">
+              <div class="journey__label">Goal</div>
+              <div class="journey__name">Role<br/>Secured</div>
+              <p class="journey__desc">
+                The outcome everything points toward.
+              </p>
+            </td>
+          </tr>
+        </table>
       </div>
+
     </div>
 
     <div class="page__footer">
