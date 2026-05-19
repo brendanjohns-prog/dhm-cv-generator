@@ -1070,29 +1070,33 @@ blockquote.dhm cite {
      ============================================================ */
   .journey {
     margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
   }
   .journey__head {
-    font-size: 9pt;
-    font-weight: 700;
-    letter-spacing: 0.22em;
+    font-size: 9.5pt !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.18em !important;
     text-transform: uppercase;
     color: var(--dhm-coral);
-    margin-bottom: 3mm;
+    margin: 0 !important;
   }
   .journey h2.journey__title {
-    font-size: 20pt;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    margin: 0 0 8mm;
+    font-size: 40pt !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+    line-height: 0.98 !important;
+    margin: 3mm 0 0 !important;
     max-width: 150mm;
+    text-wrap: balance;
   }
-  .journey__lede {
-    font-size: 10pt;
-    line-height: 1.45;
+  .journey .journey__lede {
+    font-size: 13pt !important;
+    line-height: 1.5 !important;
     color: var(--dhm-black);
-    margin: 0 0 4mm;
-    max-width: 150mm;
+    margin: 6mm 0 0 !important;
+    max-width: 145mm !important;
   }
 
   /* ---- DHM Journey Strip (PDFShift-safe: mm layout, pt type) ---- */
