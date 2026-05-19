@@ -1330,11 +1330,11 @@ blockquote.dhm cite {
       break-after: auto;
     }
     #tweaks, #tweaks-toggle-note { display: none !important; }
-    .cover {
-      margin: -0.5mm;
-      width: calc(var(--page-w) + 1mm);
-      min-height: calc(var(--page-h) + 1mm);
-    }
+  }
+  @page:first {
+    background: #DC6A63;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   @media screen and (max-width: 900px) {
