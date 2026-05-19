@@ -1329,18 +1329,11 @@ blockquote.dhm cite {
      ============================================================ */
   @page { size: A4; margin: 0; }
   @media print {
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .doc { gap: 0; padding: 0; width: 100%; }
+    html, body { background: #fff; }
+    .doc { gap: 0; padding: 0; }
     .page {
       box-shadow: none;
       margin: 0;
-      width: 100%;
       page-break-after: always;
       break-after: page;
     }
