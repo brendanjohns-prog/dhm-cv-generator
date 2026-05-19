@@ -162,11 +162,11 @@ def render_report_pdf(cv_data):
     response = requests.post(
         PDFSHIFT_URL,
         auth=('api', PDFSHIFT_API_KEY),
+        headers={'X-Processor-Version': '142'},
         json={
             'source': html,
             'format': 'A4',
             'margin': '0',
-            'use_print': True,
             'sandbox': False,
         },
         timeout=120,
