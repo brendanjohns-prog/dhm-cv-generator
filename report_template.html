@@ -1315,7 +1315,7 @@ blockquote.dhm cite {
   /* ============================================================
      PRINT
      ============================================================ */
-  @page { size: 210.2mm 297.2mm; margin: 0; }
+  @page { size: A4; margin: 0; }
   @media print {
     html, body { background: #fff; }
     .doc { gap: 0; padding: 0; }
@@ -1330,6 +1330,11 @@ blockquote.dhm cite {
       break-after: auto;
     }
     #tweaks, #tweaks-toggle-note { display: none !important; }
+    .cover {
+      margin: -0.5mm;
+      width: calc(var(--page-w) + 1mm);
+      min-height: calc(var(--page-h) + 1mm);
+    }
   }
 
   @media screen and (max-width: 900px) {
