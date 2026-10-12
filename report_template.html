@@ -935,6 +935,12 @@ blockquote.dhm cite {
     margin: 0 0 3mm;
   }
   .assess p { font-size: 10pt; line-height: 1.5; margin: 0; }
+  /* 869erg1mf: Please confirm these figures */
+  .figures { list-style: none; margin: 5mm 0 0; padding: 0; border-top: var(--rule); }
+  .figure { display: grid; grid-template-columns: 12mm 1fr; gap: 4mm; padding: 3.2mm 0; border-bottom: var(--rule); break-inside: avoid; page-break-inside: avoid; }
+  .figure__num { font-weight: 700; color: var(--dhm-coral); font-size: 10pt; }
+  .figure__where { font-size: 8pt; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 1mm; }
+  .figure p { font-size: 10pt; line-height: 1.45; margin: 0; }
 
   .assess-closer {
     margin-top: 10mm;
@@ -1653,6 +1659,47 @@ blockquote.dhm cite {
       <span class="logo-text">Dear Hiring Manager<span class="comma-wink">,</span></span>
       <span>Confidential — For {{ name }}</span>
       <span>Page <span class="page-no">{{ "%02d"|format(gap_start_page + loop.index0) }}</span></span>
+    </div>
+  </section>
+  {% endfor %}
+
+  <!-- ============================================================
+       PAGES — PLEASE CONFIRM THESE FIGURES (869erg1mf)
+       Listed by api.extract_figures(): every CV sentence with a non-date number.
+       ============================================================ -->
+  {% for page_items in figure_pages %}
+  <section class="page" data-screen-label="Confirm your figures">
+    <div class="page__header">
+      <span class="lhs">03 &nbsp;·&nbsp; Honest assessment</span>
+      <span class="rhs">{{ name }}</span>
+    </div>
+
+    {% if loop.first %}
+    <h2 class="section-title" style="font-size: 26pt;">Please confirm<br/>these figures<span class="comma-wink" style="font-size: 26pt;">,</span></h2>
+    <p class="section-lede">
+      Every figure on your new CV, apart from dates, is listed below. You are the only person
+      who knows whether each one is exactly right. <em>Please check every
+      figure before you apply</em>, and tell me straight away if anything
+      is wrong or overstated, so I can correct it.
+    </p>
+    {% endif %}
+
+    <ol class="figures">
+      {% for item in page_items %}
+      <li class="figure">
+        <div class="figure__num">{{ "%02d"|format(item.index) }}</div>
+        <div>
+          <div class="figure__where">{{ item.where }}</div>
+          <p>{{ item.text }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <div class="page__footer">
+      <span class="logo-text">Dear Hiring Manager<span class="comma-wink">,</span></span>
+      <span>Confidential — For {{ name }}</span>
+      <span>Page <span class="page-no">{{ "%02d"|format(figures_start_page + loop.index0) }}</span></span>
     </div>
   </section>
   {% endfor %}

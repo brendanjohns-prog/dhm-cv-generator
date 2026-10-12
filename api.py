@@ -124,6 +124,68 @@ def _paginate(items, per_page, first_page=None):
         pages.append(chunk)
         start += per_page
     return pages
+# --- 869erg1mf: "Please confirm these figures" (Bren's 24 Jun 2026 brief, change 3) ---
+# Deterministic, not model-generated: every sentence on the client's CV that carries a
+# number other than a date is listed in the report so the client, the only person who
+# knows the ground truth, confirms it before applying. Placeholders such as [X]% are
+# excluded because the gap report already asks for those.
+FIGURES_PER_PAGE = 9
+FIGURE_TEXT_MAX = 300
+_MONTHS = r'(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)'
+_DATE_PATTERNS = [
+    re.compile(_MONTHS + r'\.?\s+(?:19|20)\d{2}', re.I),           # March 2021
+    re.compile(r'\b(?:19|20)\d{2}\s*[-–—/]\s*(?:(?:19|20)?\d{2}|Present|Current)\b', re.I),  # 2019-2021
+    re.compile(r'\b(?:19|20)\d{2}\b'),                                # bare year
+]
+_PLACEHOLDER = re.compile(r'\[[^\]]*\]')
+_FIGURE = re.compile(r'\d')
+_SENTENCE_SPLIT = re.compile(r'(?<=[.!?])\s+(?=[A-Z])')
+
+
+def _has_figure(text):
+    if not isinstance(text, str) or not text.strip():
+        return False
+    t = _PLACEHOLDER.sub(' ', text)
+    for pat in _DATE_PATTERNS:
+        t = pat.sub(' ', t)
+    return bool(_FIGURE.search(t))
+
+
+def _role_label(header):
+    parts = [p.strip() for p in (header or '').split('|') if p.strip()]
+    if len(parts) >= 2:
+        return f"{parts[0]}, {parts[1]}"  # shown in capitals by CSS
+    return (header or 'Work experience').strip()
+
+
+def extract_figures(cv_data):
+    """Return [{'where', 'text'}] for every CV sentence or bullet carrying a non-date number."""
+    found = []
+    seen = set()
+
+    def add(where, text):
+        text = (text or '').strip()
+        key = text.lower()
+        if text and key not in seen and _has_figure(text):
+            seen.add(key)
+            found.append({'where': where, 'text': _trim(text, FIGURE_TEXT_MAX)})
+
+    for sentence in _SENTENCE_SPLIT.split(cv_data.get('summary', '') or ''):
+        add('Professional summary', sentence)
+    for role in cv_data.get('employment', []) or []:
+        if not isinstance(role, dict):
+            continue
+        label = _role_label(role.get('header', ''))
+        for sentence in _SENTENCE_SPLIT.split(role.get('context', '') or ''):
+            add(label, sentence)
+        for bullet in role.get('bullets', []) or []:
+            add(label, bullet)
+    for item in cv_data.get('earlier_career', []) or []:
+        if isinstance(item, str):
+            add('Earlier career', item)
+    return found
+
+
 def render_report_pdf(cv_data):
     """Render the HTML report with Jinja2, convert to PDF via PDFShift, return bytes."""
     if not PDFSHIFT_API_KEY:
@@ -141,9 +203,11 @@ def render_report_pdf(cv_data):
             item['text'] = _trim(item.get('text', ''), GAP_BODY_MAX)
     change_pages = _paginate(changelog, CHANGES_PER_PAGE, first_page=CHANGES_FIRST_PAGE)
     gap_pages = _paginate(gap_report, GAPS_PER_PAGE, first_page=GAPS_FIRST_PAGE)
+    figure_pages = _paginate(extract_figures(cv_data), FIGURES_PER_PAGE)
     change_start = 4
     gap_start = change_start + len(change_pages)
-    thanks_page = gap_start + len(gap_pages)
+    figures_start = gap_start + len(gap_pages)
+    thanks_page = figures_start + len(figure_pages)
     context = {
         'name': cv_data.get('name', 'Client'),
         'tagline': cv_data.get('tagline', ''),
@@ -152,6 +216,8 @@ def render_report_pdf(cv_data):
         'gap_pages': gap_pages,
         'change_start_page': change_start,
         'gap_start_page': gap_start,
+        'figure_pages': figure_pages,
+        'figures_start_page': figures_start,
         'thanks_page': thanks_page,
     }
     html = template.render(**context)
