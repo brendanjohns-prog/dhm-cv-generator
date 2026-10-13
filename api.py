@@ -130,7 +130,10 @@ def _paginate(items, per_page, first_page=None):
 # knows the ground truth, confirms it before applying. Placeholders such as [X]% are
 # excluded because the gap report already asks for those.
 FIGURES_PER_PAGE = 9
-FIGURE_TEXT_MAX = 300
+FIGURE_TEXT_MAX = 450  # 869fg4re3: was 300, which cut long summary sentences mid-word and lost the figure
+FIGURE_LINE_CHARS = 90       # 869fg4re3: characters per rendered line, rounded down so estimates err tall
+FIGURE_FIRST_PAGE_PX = 720   # space for the list on the first figures page (measured 744 px)
+FIGURE_PAGE_PX = 895         # space for the list on later figures pages (measured 917 px)
 _MONTHS = r'(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)'
 _DATE_PATTERNS = [
     re.compile(_MONTHS + r'\.?\s+(?:19|20)\d{2}', re.I),           # March 2021
@@ -186,6 +189,31 @@ def extract_figures(cv_data):
     return found
 
 
+def _figure_height(text):
+    """Estimated rendered height in px of one figure line (measured 13 Oct 2026 in Chromium,
+    A4 at 96 dpi: about 65 px of padding and label plus about 19.5 px per line of about 95
+    characters; rounded up here so the estimate errs tall)."""
+    return 66 + 20 * max(1, -(-len(text or '') // FIGURE_LINE_CHARS))
+
+
+def _paginate_figures(items):
+    """869fg4re3: fill each page by estimated height, not a flat count. The first page also
+    carries the heading and lede, so it holds less. Never more than FIGURES_PER_PAGE lines."""
+    pages, page, used = [], [], 0
+    for n, item in enumerate(items, start=1):
+        budget = FIGURE_FIRST_PAGE_PX if not pages else FIGURE_PAGE_PX
+        h = _figure_height(item.get('text', ''))
+        if page and (used + h > budget or len(page) >= FIGURES_PER_PAGE):
+            pages.append(page)
+            page, used = [], 0
+        item['index'] = n
+        page.append(item)
+        used += h
+    if page:
+        pages.append(page)
+    return pages
+
+
 def render_report_pdf(cv_data):
     """Render the HTML report with Jinja2, convert to PDF via PDFShift, return bytes."""
     if not PDFSHIFT_API_KEY:
@@ -203,7 +231,7 @@ def render_report_pdf(cv_data):
             item['text'] = _trim(item.get('text', ''), GAP_BODY_MAX)
     change_pages = _paginate(changelog, CHANGES_PER_PAGE, first_page=CHANGES_FIRST_PAGE)
     gap_pages = _paginate(gap_report, GAPS_PER_PAGE, first_page=GAPS_FIRST_PAGE)
-    figure_pages = _paginate(extract_figures(cv_data), FIGURES_PER_PAGE)
+    figure_pages = _paginate_figures(extract_figures(cv_data))
     change_start = 4
     gap_start = change_start + len(change_pages)
     figures_start = gap_start + len(gap_pages)
