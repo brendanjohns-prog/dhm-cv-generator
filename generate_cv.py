@@ -14,7 +14,7 @@ import os
 import re
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor, Cm
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -86,6 +86,30 @@ def set_run_font(run, name='Calibri', size=11, bold=False, italic=False, color=N
     run.font.italic = italic
     if color:
         run.font.color.rgb = RGBColor(*color)
+
+
+
+# Placeholders the writer leaves for the client to fill in (e.g. [X]%, [N], [productivity measure]).
+# Bren, 14 Oct 2026 (ClickUp 869fh49d7): keep them, but show them bold with a yellow highlight
+# so the client cannot miss them. A highlight is removed with one click in Word.
+PLACEHOLDER_RE = re.compile(r'(\[[^\[\]\n]{1,40}\])')
+
+
+def add_text_runs(paragraph, text, **font):
+    """Add text as runs, rendering any [placeholder] bold with a yellow highlight."""
+    text = str(text) if text is not None else ''
+    runs = []
+    for part in PLACEHOLDER_RE.split(text):
+        if not part:
+            continue
+        r = paragraph.add_run(part)
+        if PLACEHOLDER_RE.fullmatch(part):
+            set_run_font(r, **{**font, 'bold': True})
+            r.font.highlight_color = WD_COLOR_INDEX.YELLOW
+        else:
+            set_run_font(r, **font)
+        runs.append(r)
+    return runs
 
 
 def _add_paragraph_shading(paragraph, fill_hex):
@@ -170,8 +194,7 @@ def add_bullet(doc, text):
     p = doc.add_paragraph(style='List Bullet')
     p.paragraph_format.space_before = Pt(1)
     p.paragraph_format.space_after  = Pt(1)
-    run = p.add_run(str(text) if text is not None else '')
-    set_run_font(run, size=10.5)
+    add_text_runs(p, text, size=10.5)
     return p
 
 
@@ -297,8 +320,7 @@ def _render_summary(doc, summary_text):
         if not part:
             continue
         p_sum = doc.add_paragraph()
-        r_sum = p_sum.add_run(part)
-        set_run_font(r_sum, size=10.5)
+        add_text_runs(p_sum, part, size=10.5)
         p_sum.paragraph_format.space_before = Pt(0)
         p_sum.paragraph_format.space_after  = Pt(6) if i == len(parts) - 1 else Pt(4)
 
@@ -378,8 +400,7 @@ def _add_cv_content(doc, cv_data):
                 p_ctx = doc.add_paragraph()
                 p_ctx.paragraph_format.space_before = Pt(1)
                 p_ctx.paragraph_format.space_after  = Pt(3)
-                r_ctx = p_ctx.add_run(role['context'])
-                set_run_font(r_ctx, size=10, italic=True, color=MID_GREY)
+                add_text_runs(p_ctx, role['context'], size=10, italic=True, color=MID_GREY)
 
             for bullet in (role.get('bullets') or []):
                 add_bullet(doc, bullet)
